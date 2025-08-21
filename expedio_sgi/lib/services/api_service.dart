@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // !!! URL REAL DA API !!!
-  static const String _baseUrl = 'http://10.0.0.250/marchef/public/api.php';
+  static const String _baseUrl = 'http://192.168.3.183/marchef/public/api.php';
 
   // Função para fazer login
   Future<Map<String, dynamic>> login(String login, String senha) async {
