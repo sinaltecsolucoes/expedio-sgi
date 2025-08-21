@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // !!! URL REAL DA API !!!
-  static const String _baseUrl = 'http://192.168.3.183/marchef/public/api.php';
+  static const String _baseUrl = 'http://192.168.3.27/marchef/public/api.php';
 
   // Função para fazer login
   Future<Map<String, dynamic>> login(String login, String senha) async {
@@ -102,12 +102,11 @@ class ApiService {
     final authData = await getAuthData();
     final token = authData['token'];
 
-    // ADICIONE ESTA LINHA PARA DEPURAR
-    print('TOKEN ENVIADO PARA A API: $token');
-
     if (token == null || token.isEmpty) {
-      // Verificação extra para token vazio
-      return {'success': false, 'message': 'Usuário não autenticado.'};
+      return {
+        'success': false,
+        'message': 'Usuário não autenticado no Flutter.',
+      };
     }
 
     try {
@@ -123,7 +122,7 @@ class ApiService {
           'clienteOrganizadorId': clienteOrganizadorId,
         }),
       );
-
+      // Apenas retorna o corpo da resposta decodificado
       return jsonDecode(response.body);
     } catch (e) {
       return {'success': false, 'message': 'Erro de conexão: $e'};
