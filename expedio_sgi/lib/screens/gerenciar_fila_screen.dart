@@ -39,7 +39,7 @@ class _GerenciarFilaScreenState extends State<GerenciarFilaScreen> {
     });
   }
 
-  // NOVA FUNÇÃO: Cria e exibe o dialog para selecionar o cliente
+  // Cria e exibe o dialog para selecionar o cliente
   Future<void> _mostrarDialogoSelecionarCliente() async {
     // Busca a lista completa de clientes do nosso cache
     final List<Map<String, dynamic>> todosOsClientes = await _cacheService.getClientes();

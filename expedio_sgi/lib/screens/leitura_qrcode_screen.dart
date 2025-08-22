@@ -22,43 +22,56 @@ class LeituraQrCodeScreen extends StatefulWidget {
 
 class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
   final ApiService _apiService = ApiService();
-  final List<Map<String, dynamic>> _produtosLidos = [];
+  final List<Map<String, dynamic>> _produtosAgrupados = [];
   bool _isProcessing = false;
-  
-  // ==========================================================
-  // NOVA VARIÁVEL PARA GUARDAR A ÚLTIMA LEITURA
-  // ==========================================================
-  String? _lastScannedCode;
+  bool _isSaving = false; // Nova variável de estado para o salvamento
 
-  Future<void> _onDetect(BarcodeCapture capture) async {
-    if (_isProcessing) return;
+  /* Future<void> _onDetect(BarcodeCapture capture) async {
+    if (_isProcessing || _isSaving)
+      return; // Não processa se já estiver salvando
+
+    setState(() {
+      _isProcessing = true;
+    });
 
     final List<Barcode> barcodes = capture.barcodes;
     if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
       final String codigoLido = barcodes.first.rawValue!;
-      
-      // Atualiza a tela com o código lido para depuração
-      setState(() {
-        _isProcessing = true;
-        _lastScannedCode = codigoLido;
-      });
 
       final resultado = await _apiService.validarLeitura(codigoLido);
 
       if (mounted) {
         if (resultado['success'] == true) {
           setState(() {
-            _produtosLidos.add({
-              'qrCode': codigoLido,
-              'produto': resultado['produto'] ?? 'Produto'
-            });
+            final produtoNome = resultado['produto'];
+            final index = _produtosAgrupados.indexWhere(
+              (p) => p['produto'] == produtoNome,
+            );
+
+            if (index != -1) {
+              _produtosAgrupados[index]['quantidade']++;
+            } else {
+              _produtosAgrupados.add({
+                'produto': produtoNome,
+                'quantidade': 1,
+                'produtoId': resultado['produtoId'],
+                'loteId': resultado['loteIdHeader'],
+                // Adicione qualquer outro dado que a API de salvar precise
+              });
+            }
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('✔️ ${resultado['produto']} adicionado!'), backgroundColor: Colors.green),
+            SnackBar(
+              content: Text('✔️ ${resultado['produto']} adicionado!'),
+              backgroundColor: Colors.green,
+            ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('❌ Erro: ${resultado['message']}'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text('❌ Erro: ${resultado['message']}'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -66,8 +79,123 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
 
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) {
-      setState(() { _isProcessing = false; });
+      setState(() {
+        _isProcessing = false;
+      });
     }
+  }
+*/
+
+  Future<void> _salvarLeituras() async {
+    if (_produtosAgrupados.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nenhum produto para salvar.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    setState(() {
+      _isSaving = true;
+    });
+
+    // Chama a função do ApiService
+    final response = await _apiService.salvarLeituras(
+      carregamentoId: widget.carregamentoId,
+      filaId: widget.filaId,
+      clienteId: widget.clienteId,
+      leituras: _produtosAgrupados,
+    );
+
+    if (mounted) {
+      if (response['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message']),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro: ${response['message']}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+
+    setState(() {
+      _isSaving = false;
+    });
+  }
+
+  Future<void> _onDetect(BarcodeCapture capture) async {
+    if (_isProcessing || _isSaving) return;
+
+    setState(() {
+      _isProcessing = true;
+    });
+
+    final List<Barcode> barcodes = capture.barcodes;
+    if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+      final String codigoLido = barcodes.first.rawValue!;
+
+      final resultado = await _apiService.validarLeitura(codigoLido);
+
+      if (mounted) {
+        if (resultado['success'] == true) {
+          setState(() {
+            final produtoNome = resultado['produto'];
+            final index = _produtosAgrupados.indexWhere(
+              (p) => p['produto'] == produtoNome,
+            );
+
+            if (index != -1) {
+              _produtosAgrupados[index]['quantidade']++;
+            } else {
+              _produtosAgrupados.add({
+                'produto': produtoNome,
+                'quantidade': 1,
+                'qrCode': codigoLido,
+                'produtoId':
+                    resultado['produtoId'], // Tenta ler o ID do produto
+                'loteId': resultado['loteIdHeader'], // Tenta ler o ID do lote
+              });
+            }
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✔️ ${resultado['produto']} adicionado!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Erro: ${resultado['message']}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (mounted) {
+      setState(() {
+        _isProcessing = false;
+      });
+    }
+  }
+
+  int get _totalItensLidos {
+    if (_produtosAgrupados.isEmpty) return 0;
+    return _produtosAgrupados
+        .map((p) => p['quantidade'] as int)
+        .reduce((a, b) => a + b);
   }
 
   @override
@@ -75,6 +203,26 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Lendo para Fila #${widget.filaId}'),
+        // Adiciona um botão de salvar na barra de título
+        actions: [
+          if (_isSaving)
+            const Padding(
+              padding: EdgeInsets.only(right: 16.0),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.save),
+              onPressed: _salvarLeituras,
+              tooltip: 'Salvar Leituras',
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -99,45 +247,77 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
           Expanded(
             flex: 2,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ==========================================================
-                // NOSSO NOVO PAINEL DE DEPURAÇÃO
-                // ==========================================================
-                Card(
-                  color: Colors.yellow[100],
-                  margin: const EdgeInsets.all(8.0),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Text('DEBUG: Último QR Code Lido:', style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 4),
-                        Text(
-                          _lastScannedCode ?? 'Nenhum código lido ainda',
-                          style: const TextStyle(fontFamily: 'monospace', fontSize: 16),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // ==========================================================
                 Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8.0,
+                  ),
                   child: Text(
-                    'Produtos Lidos: ${_produtosLidos.length}',
+                    'Produtos Lidos: $_totalItensLidos',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        flex: 1,
+                        child: Text(
+                          'Ordem',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const Expanded(
+                        flex: 5,
+                        child: Text(
+                          'Descrição',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const Expanded(
+                        flex: 2,
+                        child: Text(
+                          'Quant.',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
                 Expanded(
                   child: ListView.builder(
-                    itemCount: _produtosLidos.length,
+                    itemCount: _produtosAgrupados.length,
                     itemBuilder: (context, index) {
-                      final item = _produtosLidos[index];
-                      return ListTile(
-                        leading: const Icon(Icons.qr_code),
-                        title: Text(item['produto']),
-                        subtitle: Text(item['qrCode']),
+                      final item = _produtosAgrupados[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 8.0,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: Text('${index + 1}'.padLeft(2, '0')),
+                            ),
+                            Expanded(flex: 5, child: Text(item['produto'])),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                item['quantidade'].toString(),
+                                textAlign: TextAlign.right,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   ),

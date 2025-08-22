@@ -1,12 +1,14 @@
 // lib/screens/gerenciar_carregamento_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart'; // Importa o seletor de imagem
 import '../services/api_service.dart';
-import 'gerenciar_fila_screen.dart';
+import 'gerenciar_fila_screen.dart'; // Importa a tela de detalhes da fila
+import 'visualizar_foto_screen.dart';
 
 class GerenciarCarregamentoScreen extends StatefulWidget {
   final int carregamentoId;
-  final String numeroCarregamento; // Para exibir no título
+  final String numeroCarregamento;
 
   const GerenciarCarregamentoScreen({
     super.key,
@@ -22,6 +24,7 @@ class GerenciarCarregamentoScreen extends StatefulWidget {
 class _GerenciarCarregamentoScreenState
     extends State<GerenciarCarregamentoScreen> {
   final ApiService _apiService = ApiService();
+  final ImagePicker _picker = ImagePicker(); // Instancia o seletor de imagens
   late Future<List<dynamic>> _filasFuture;
 
   @override
@@ -43,7 +46,6 @@ class _GerenciarCarregamentoScreenState
     if (response['success'] == true) {
       return response['data'];
     } else {
-      // Lança um erro para que o FutureBuilder possa exibi-lo
       throw Exception('Falha ao carregar filas: ${response['message']}');
     }
   }
@@ -58,7 +60,6 @@ class _GerenciarCarregamentoScreenState
             backgroundColor: Colors.green,
           ),
         );
-        // Recarrega a lista de filas para mostrar a nova
         _carregarFilas();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -71,10 +72,83 @@ class _GerenciarCarregamentoScreenState
     }
   }
 
+  // Abre a câmera/galeria e envia a foto
+  Future<void> _selecionarEEnviarFoto(int filaId) async {
+    try {
+      final XFile? foto = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 50,
+      );
+
+      if (foto != null) {
+        // Mostra um indicador de loading
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Enviando foto...')));
+
+        final response = await _apiService.uploadFotoFila(
+          filaId: filaId,
+          imagePath: foto.path,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).removeCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response['message']),
+              backgroundColor: response['success'] ? Colors.green : Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao processar foto: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _finalizarCarregamento() async {
+    final response = await _apiService.finalizarCarregamento(
+      widget.carregamentoId,
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response['message']),
+          backgroundColor: response['success'] ? Colors.green : Colors.red,
+        ),
+      );
+      // Se deu sucesso, fecha a tela e volta para a Home
+      if (response['success']) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Carreg. Nº ${widget.numeroCarregamento}')),
+      appBar: AppBar(
+        title: Text('Carreg. Nº ${widget.numeroCarregamento}'),
+        // Ações na barra de título
+        actions: [
+          // ==========================================================
+          // A CORREÇÃO ESTÁ AQUI: Trocamos por um IconButton
+          // ==========================================================
+          IconButton(
+            onPressed: _finalizarCarregamento,
+            icon: const Icon(Icons.check_circle_outline),
+            tooltip:
+                'Finalizar Carregamento', // Texto que aparece ao pressionar e segurar
+          ),
+        ],
+      ),
       body: FutureBuilder<List<dynamic>>(
         future: _filasFuture,
         builder: (context, snapshot) {
@@ -99,6 +173,10 @@ class _GerenciarCarregamentoScreenState
             itemCount: filas.length,
             itemBuilder: (context, index) {
               final fila = filas[index];
+              final bool temFoto =
+                  fila['fila_foto_path'] != null &&
+                  fila['fila_foto_path'].isNotEmpty;
+
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
@@ -110,7 +188,37 @@ class _GerenciarCarregamentoScreenState
                     'Clientes: ${fila['total_clientes'] ?? 0} | '
                     'Qtd. Total: ${fila['total_quantidade'] ?? 0}',
                   ),
-                  trailing: const Icon(Icons.arrow_forward_ios),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (temFoto)
+                        IconButton(
+                          icon: const Icon(Icons.photo_library),
+                          onPressed: () async {
+                            final baseUrl = await _apiService
+                                .getBaseUrlForImages();
+                            if (mounted) {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => VisualizarFotoScreen(
+                                    partialImagePath: fila['fila_foto_path'],
+                                    baseUrl: baseUrl,
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                          tooltip: 'Ver Foto',
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.camera_alt),
+                        onPressed: () =>
+                            _selecionarEEnviarFoto(fila['fila_id']),
+                        tooltip: 'Enviar Foto da Fila',
+                      ),
+                      const Icon(Icons.arrow_forward_ios),
+                    ],
+                  ),
                   onTap: () {
                     Navigator.of(context)
                         .push(
@@ -122,9 +230,7 @@ class _GerenciarCarregamentoScreenState
                             ),
                           ),
                         )
-                        .then(
-                          (_) => _carregarFilas(),
-                        ); // Recarrega a lista ao voltar
+                        .then((_) => _carregarFilas());
                   },
                 ),
               );
