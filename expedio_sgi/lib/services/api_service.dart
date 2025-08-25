@@ -8,16 +8,32 @@ class ApiService {
   //  static const String _baseUrl = 'http://10.0.0.250/marchef/public/api.php';
 
   // Função para buscar o IP salvo e montar a URL base dinamicamente
-  Future<String> _getBaseUrl() async {
+  /*  Future<String> _getBaseUrl() async {
     final prefs = await SharedPreferences.getInstance();
     // Busca o IP salvo. Se não houver, usa um valor padrão.
     final ip =
         prefs.getString('server_ip') ??
-        '192.168.3.27'; // IP padrão aqui quando usar o celular fisico
+       // '192.168.3.27'; // IP padrão aqui quando usar o celular fisico
     //prefs.getString('server_ip') ?? '10.0.2.2'; // IP padrão aqui quando usar emulador
-    // prefs.getString('server_ip') ?? 'marchef.ddns.net'; // IP padrão aqui quando usar servidor
+     prefs.getString('server_ip') ?? 'marchef.ddns.net'; // IP padrão aqui quando usar servidor
     //return 'http://$ip/marchef/public/api.php';
     return 'http://$ip/marchef/public/api.php';
+  }*/
+
+  Future<String> _getBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // 1. Tenta buscar um IP/endereço personalizado salvo nas configurações.
+    final String? customUrl = prefs.getString('server_ip');
+
+    // 2. Verifica se o campo não está vazio ou nulo.
+    if (customUrl != null && customUrl.isNotEmpty) {
+      // Se o usuário digitou um IP (ex: 192.168.0.10), monta a URL local.
+      return 'http://$customUrl/marchef/public/api.php';
+    } else {
+      // 3. Se não houver nada salvo, usa a URL online como padrão.
+      return 'https://marchef.ddns.net/marchef/public/api.php';
+    }
   }
 
   // Função para fazer login
@@ -639,6 +655,83 @@ class ApiService {
           'clienteId': clienteId,
           'leituras': leituras,
         }),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  // NOVA FUNÇÃO: Exclui uma fila específica.
+  Future<Map<String, dynamic>> excluirFila(int filaId) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse(
+      '$baseUrl?action=removerFilaCompleta',
+    ); // Usaremos a ação que já existe no seu backend
+    final authData = await getAuthData();
+    final token = authData['token'];
+
+    if (token == null) return {'success': false, 'message': 'Não autenticado'};
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'fila_id': filaId}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  // Função atualiza a quantidade de um único item.
+  Future<Map<String, dynamic>> atualizarQuantidadeItem({
+    required int itemId,
+    required int novaQuantidade,
+  }) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=atualizarQuantidadeItem');
+    final authData = await getAuthData();
+    final token = authData['token'];
+
+    if (token == null) return {'success': false, 'message': 'Não autenticado'};
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'itemId': itemId, 'novaQuantidade': novaQuantidade}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  // NOVA FUNÇÃO: Exclui a foto de uma fila.
+  Future<Map<String, dynamic>> excluirFotoFila(int filaId) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=excluirFotoFila');
+    final authData = await getAuthData();
+    final token = authData['token'];
+
+    if (token == null) return {'success': false, 'message': 'Não autenticado'};
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'filaId': filaId}),
       );
       return jsonDecode(response.body);
     } catch (e) {

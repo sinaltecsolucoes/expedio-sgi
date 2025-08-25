@@ -14,12 +14,37 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'App de Carregamento',
+      debugShowCheckedModeBanner: false,
+      // --- TEMA GLOBAL APLICADO ---
       theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color.fromARGB(255, 58, 130, 197),
+        ),
+        useMaterial3: true,
+
+        // Define o tema padrão para todos os ElevatedButtons do app
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color.fromARGB(223, 77, 140, 199),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+            textStyle: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+
+        // Tema padrão para FloatingActionButtons
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: Color.fromARGB(255, 58, 130, 197),
+          foregroundColor: Colors.white,
+          extendedTextStyle: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
-      home: const LoginScreen(),// A tela inicial do nosso app
-       debugShowCheckedModeBanner: false, 
+
+      // -----------------------------
+      home: const LoginScreen(),
     );
   }
 }

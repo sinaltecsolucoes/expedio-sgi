@@ -3,10 +3,25 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:dropdown_search/dropdown_search.dart'; // Importa o pacote de busca
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import '../services/cache_service.dart';
 import 'leitura_qrcode_screen.dart';
 import 'gerenciar_carregamento_screen.dart';
+
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
+    );
+  }
+}
 
 class NovoCarregamentoScreen extends StatefulWidget {
   const NovoCarregamentoScreen({super.key});
@@ -23,6 +38,17 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
   final _lacreController = TextEditingController();
   final _placaController = TextEditingController();
   final _ordemExpedicaoController = TextEditingController();
+
+  final placaFormatter = MaskTextInputFormatter(
+    mask: 'AAA-@### / AAA-@###',
+    filter: {
+      "#": RegExp(r'[0-9]'),
+      "A": RegExp(r'[a-zA-Z]'),
+      "@": RegExp(
+        r'[a-zA-Z0-9]',
+      ), // Aceita letra ou número (para o padrão Mercosul)
+    },
+  );
 
   int? _proximoNumero;
   List<Map<String, dynamic>> _clientes = [];
@@ -108,11 +134,12 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
           MaterialPageRoute(
             builder: (context) => GerenciarCarregamentoScreen(
               carregamentoId: carregamentoId,
-              numeroCarregamento: numeroFormatado, // Passamos o número para exibir no título
+              numeroCarregamento:
+                  numeroFormatado, // Passamos o número para exibir no título
+              ordemExpedicao: _ordemExpedicaoController.text, 
             ),
           ),
         );
-
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -205,16 +232,53 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _placaController,
+              // 1. Aplica a máscara e converte para maiúsculas
+              inputFormatters: [placaFormatter, UpperCaseTextFormatter()],
+              textCapitalization: TextCapitalization.characters,
               decoration: const InputDecoration(
-                labelText: 'Placa do Veículo',
+                labelText: 'Placa(s) do Veículo',
+                hintText: 'AAA-1234 ou AAA-1B23 / BBB-5C67',
                 border: OutlineInputBorder(),
               ),
-              validator: (value) =>
-                  (value == null ||
-                      value.isEmpty ||
-                      !RegExp(r'^[A-Z]{3}\d[A-Z0-9][0-9]{2}$').hasMatch(value))
-                  ? 'Placa inválida (ex.: ABC1D23)'
-                  : null,
+              // 2. Adiciona a nova lógica de validação
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Campo obrigatório';
+                }
+
+                // Remove a máscara para validar apenas os caracteres
+                final placasString = value.replaceAll('-', '');
+                final placas = placasString
+                    .split('/')
+                    .map((p) => p.trim())
+                    .toList();
+
+                // Regex para validar placa antiga ou Mercosul
+                final RegExp placaRegex = RegExp(
+                  r'^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$',
+                );
+
+                // Valida a primeira placa
+                if (placas.isNotEmpty && placas[0].isNotEmpty) {
+                  if (placas[0].length != 7 ||
+                      !placaRegex.hasMatch(placas[0])) {
+                    return 'Placa 1 inválida.';
+                  }
+                } else {
+                  return 'Placa 1 inválida.';
+                }
+
+                // Se houver uma segunda placa, valida também
+                if (placas.length > 1 && placas[1].isNotEmpty) {
+                  if (placas[1].length != 7 ||
+                      !placaRegex.hasMatch(placas[1])) {
+                    return 'Placa 2 inválida.';
+                  }
+                }
+
+                // Se tudo estiver certo
+                return null;
+              },
             ),
             const SizedBox(height: 16),
             InkWell(
@@ -248,12 +312,12 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
                         _salvarCabecalho();
                       }
                     },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
                     child: Text(
                       'Salvar e Continuar',
-                      style: TextStyle(fontSize: 18),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
           ],

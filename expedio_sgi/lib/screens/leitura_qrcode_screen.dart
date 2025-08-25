@@ -1,6 +1,7 @@
 // lib/screens/leitura_qrcode_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../services/api_service.dart';
@@ -112,7 +113,7 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
     }
   }
 
-  Future<void> _onDetect(BarcodeCapture capture) async {
+  /*  Future<void> _onDetect(BarcodeCapture capture) async {
     if (_isProcessing || _isSaving) return;
 
     final barcode = capture.barcodes.firstOrNull;
@@ -134,9 +135,13 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
       final resultado = await _apiService.validarLeitura(codigoLido);
 
       if (mounted && resultado['success'] == true) {
-        final player = AudioPlayer();
-        player.setReleaseMode(ReleaseMode.release);
-        await player.play(AssetSource('sounds/beep-leituraQR.mp3'));
+        final prefs = await SharedPreferences.getInstance();
+        final bool somAtivado = prefs.getBool('beep_sound_enabled') ?? true;
+        if (somAtivado) {
+          final player = AudioPlayer();
+          player.setReleaseMode(ReleaseMode.release);
+          await player.play(AssetSource('sounds/beep-leituraQR.mp3'));
+        }
 
         setState(() {
           _lastScannedCode = codigoLido;
@@ -161,6 +166,89 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
               'itemId': null,
             });
           }
+        });
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro: ${resultado['message']}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    }
+  }
+*/
+
+  // Em leitura_qrcode_screen.dart
+  Future<void> _onDetect(BarcodeCapture capture) async {
+    if (_isProcessing || _isSaving) return;
+
+    final barcode = capture.barcodes.firstOrNull;
+    if (barcode?.rawValue == null) return;
+
+    final String codigoLido = barcode!.rawValue!;
+
+    final now = DateTime.now();
+    if (codigoLido == _lastScannedCode &&
+        now.difference(_lastScanTime).inSeconds < 2) {
+      return;
+    }
+
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      final resultado = await _apiService.validarLeitura(codigoLido);
+
+      if (mounted && resultado['success'] == true) {
+        final prefs = await SharedPreferences.getInstance();
+        final bool somAtivado = prefs.getBool('beep_sound_enabled') ?? true;
+
+        if (somAtivado) {
+          final player = AudioPlayer();
+          player.setReleaseMode(ReleaseMode.release);
+          await player.play(AssetSource('sounds/beep-leituraQR.mp3'));
+        }
+
+        setState(() {
+          _lastScannedCode = codigoLido;
+          _lastScanTime = now;
+
+          // --- INÍCIO DA CORREÇÃO ---
+
+          // 1. Recriamos a chave completa (Produto + Lote) a partir do resultado do scan
+          final String produtoNome =
+              resultado['produto'] ?? 'Produto Desconhecido';
+          final String lote = resultado['lote'] ?? 'N/A';
+          final String chaveDeBusca = "$produtoNome (Lote: $lote)";
+
+          // 2. Usamos a chave completa para procurar na lista
+          final index = _produtosAgrupados.indexWhere(
+            (p) => p['produtoNome'] == chaveDeBusca, // <-- Comparação correta
+          );
+
+          if (index != -1) {
+            // Se encontrou, apenas incrementa a quantidade
+            _produtosAgrupados[index]['quantidade']++;
+          } else {
+            // Se não encontrou, adiciona um novo item usando a chave completa
+            _produtosAgrupados.add({
+              'produtoNome':
+                  chaveDeBusca, // <-- Usamos a chave completa aqui também
+              'quantidade': 1,
+              'produtoId': resultado['produtoId'],
+              'loteId': resultado['loteIdHeader'],
+              'itemId': null,
+            });
+          }
+          // --- FIM DA CORREÇÃO ---
         });
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

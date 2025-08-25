@@ -20,7 +20,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ApiService _apiService = ApiService();
   String _userName = 'Carregando...';
-  // Usaremos um FutureBuilder, então a lógica de loading fica mais simples
+
   Future<Map<String, List<dynamic>>>? _listasCarregamentos;
 
   @override
@@ -39,7 +39,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Função para carregar todos os dados iniciais da tela
   Future<void> _loadInitialData() async {
-    //void _loadInitialData() {
     await _loadUserName(); // Carrega o nome do usuário
     setState(() {
       // Inicia a busca pelas listas de carregamentos
@@ -63,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _apiService.getCarregamentosFinalizados(limit: 3),
     ]);
 
-    // O retorno da sua API agora é uma Lista, não um Mapa
+    // O retorno da API agora é uma Lista, não um Mapa
     final ativosResponse = results[0];
     final finalizadosResponse = results[1];
 
@@ -74,7 +73,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // Função para fazer logout
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    // await prefs.clear();
+    await prefs.remove('api_token');
+    await prefs.remove('user_name');
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -94,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // NOVA FUNÇÃO: Lida com a exclusão e o diálogo de confirmação
+  // Função lida com a exclusão e o diálogo de confirmação
   Future<void> _excluirCarregamento(
     int carregamentoId,
     String numeroCarregamento,
@@ -154,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      // Adicionamos o RefreshIndicator para poder "puxar para atualizar"
+      // Adicionado o RefreshIndicator para poder "puxar para atualizar"
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: SingleChildScrollView(
@@ -191,10 +192,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         (_) => _loadInitialData(),
                       ); // Recarrega os dados ao voltar
                 },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  textStyle: const TextStyle(fontSize: 18),
-                ),
               ),
               const SizedBox(height: 32),
 
@@ -284,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
               // Ícone de lixeira
               trailing: isAtivo
                   ? IconButton(
-                      icon: const Icon(Icons.delete_forever, color: Colors.red),
+                      icon: const Icon(Icons.delete, color: Colors.red),
                       onPressed: () => _excluirCarregamento(
                         carregamento['carregamentoId'],
                         carregamento['numero'].toString(),

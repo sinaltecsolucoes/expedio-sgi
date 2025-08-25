@@ -99,6 +99,7 @@ class _DetalhesCarregamentoScreenState
         builder: (context) => GerenciarCarregamentoScreen(
           carregamentoId: widget.carregamentoId,
           numeroCarregamento: widget.numeroCarregamento,
+          ordemExpedicao: _ordemExpedicaoController.text,
         ),
       ),
     );
