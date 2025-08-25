@@ -18,7 +18,8 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const LoginScreen(), // A tela inicial do nosso app
+      home: const LoginScreen(),// A tela inicial do nosso app
+       debugShowCheckedModeBanner: false, 
     );
   }
 }

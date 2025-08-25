@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
-import 'login_screen.dart'; 
+import 'login_screen.dart';
 import 'novo_carregamento_screen.dart';
 import 'leitura_qrcode_screen.dart';
 import 'resumo_carregamento_screen.dart';
@@ -91,6 +91,53 @@ class _HomeScreenState extends State<HomeScreen> {
       return DateFormat('dd/MM/yyyy').format(parsedDate);
     } catch (e) {
       return 'Data inválida';
+    }
+  }
+
+  // NOVA FUNÇÃO: Lida com a exclusão e o diálogo de confirmação
+  Future<void> _excluirCarregamento(
+    int carregamentoId,
+    String numeroCarregamento,
+  ) async {
+    final bool? confirmado = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmar Exclusão'),
+          content: Text(
+            'Tem certeza que deseja excluir permanentemente o Carregamento Nº $numeroCarregamento?',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () =>
+                  Navigator.of(context).pop(false), // Retorna false
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Excluir'),
+              onPressed: () => Navigator.of(context).pop(true), // Retorna true
+            ),
+          ],
+        );
+      },
+    );
+
+    // Se o usuário confirmou (retornou true)
+    if (confirmado == true) {
+      final response = await _apiService.excluirCarregamento(carregamentoId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message']),
+            backgroundColor: response['success'] ? Colors.green : Colors.red,
+          ),
+        );
+        // Se a exclusão foi bem-sucedida, recarrega a lista
+        if (response['success']) {
+          _loadInitialData();
+        }
+      }
     }
   }
 
@@ -226,13 +273,25 @@ class _HomeScreenState extends State<HomeScreen> {
                 Icons.local_shipping,
                 color: isAtivo ? Colors.orange : Colors.green,
               ),
-             
+
               title: Text(
                 'Nº ${carregamento['numero']} - ${carregamento['nome_cliente']}',
               ),
               subtitle: Text(
                 'Responsável: ${carregamento['responsavel']}\nData: ${_formatarData(carregamento['data'])}',
               ),
+
+              // Ícone de lixeira
+              trailing: isAtivo
+                  ? IconButton(
+                      icon: const Icon(Icons.delete_forever, color: Colors.red),
+                      onPressed: () => _excluirCarregamento(
+                        carregamento['carregamentoId'],
+                        carregamento['numero'].toString(),
+                      ),
+                      tooltip: 'Excluir Carregamento',
+                    )
+                  : null, // Não mostra o botão para carregamentos finalizados
 
               onTap: () {
                 final carregamentoId = carregamento['carregamentoId'];

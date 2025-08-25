@@ -2,8 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-// Crie este arquivo em branco por enquanto: lib/screens/home_screen.dart
-import 'home_screen.dart'; 
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -40,21 +39,18 @@ class _LoginScreenState extends State<LoginScreen> {
     } else if (mounted) {
       // Mostra uma mensagem de erro
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message']),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
       );
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  /*@override
+    Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      /*appBar: AppBar(
         title: const Text('Login de Acesso'),
         centerTitle: true,
-      ),
+      ),*/
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -89,6 +85,66 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text('Entrar'),
                   ),
           ],
+        ),
+      ),
+    );
+  }
+*/
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        // Centraliza o conteúdo na tela
+        child: SingleChildScrollView(
+          // Permite rolagem se o teclado cobrir a tela
+          padding: const EdgeInsets.all(
+            32.0,
+          ), // Aumenta o espaçamento das bordas
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Image.asset(
+                'assets/images/logo_marchef.png', //Adiciona a logomarca
+                height: 150, // Ajustar altura conforme necessário
+              ),
+              const SizedBox(height: 48), // Espaço entre a logo e os campos
+
+              TextField(
+                controller: _loginController,
+                decoration: const InputDecoration(
+                  labelText: 'Usuário',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.text,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _senhaController,
+                decoration: const InputDecoration(
+                  labelText: 'Senha',
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 24),
+              _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: _doLogin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(255, 77, 140, 199),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ), // Aumenta o texto do botão
+                      ),
+                      child: const Text('Entrar'),
+                    ),
+            ],
+          ),
         ),
       ),
     );

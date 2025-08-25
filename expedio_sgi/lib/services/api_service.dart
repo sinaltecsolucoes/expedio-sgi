@@ -12,7 +12,11 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     // Busca o IP salvo. Se não houver, usa um valor padrão.
     final ip =
-        prefs.getString('server_ip') ?? '10.0.0.250'; // Use seu IP padrão aqui
+        prefs.getString('server_ip') ??
+        '192.168.3.27'; // IP padrão aqui quando usar o celular fisico
+    //prefs.getString('server_ip') ?? '10.0.2.2'; // IP padrão aqui quando usar emulador
+    // prefs.getString('server_ip') ?? 'marchef.ddns.net'; // IP padrão aqui quando usar servidor
+    //return 'http://$ip/marchef/public/api.php';
     return 'http://$ip/marchef/public/api.php';
   }
 
@@ -550,6 +554,91 @@ class ApiService {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({'carregamentoId': carregamentoId}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  // NOVA FUNÇÃO: Exclui um carregamento.
+  Future<Map<String, dynamic>> excluirCarregamento(int carregamentoId) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=excluirCarregamento');
+    final authData = await getAuthData();
+    final token = authData['token'];
+
+    if (token == null) return {'success': false, 'message': 'Não autenticado'};
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'carregamentoId': carregamentoId}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  // Função remove um cliente de uma fila.
+  Future<Map<String, dynamic>> removerClienteDeFila(
+    int filaId,
+    int clienteId,
+  ) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=removerClienteDeFila');
+    final authData = await getAuthData();
+    final token = authData['token'];
+
+    if (token == null) return {'success': false, 'message': 'Não autenticado'};
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'filaId': filaId, 'clienteId': clienteId}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  // Função atualiza a lista de produtos de um cliente
+  Future<Map<String, dynamic>> atualizarLeituras({
+    required int carregamentoId,
+    required int filaId,
+    required int clienteId,
+    required List<Map<String, dynamic>> leituras,
+  }) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=atualizarItensCliente');
+    final authData = await getAuthData();
+    final token = authData['token'];
+
+    if (token == null) return {'success': false, 'message': 'Não autenticado'};
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'carregamentoId': carregamentoId,
+          'filaId': filaId,
+          'clienteId': clienteId,
+          'leituras': leituras,
+        }),
       );
       return jsonDecode(response.body);
     } catch (e) {
