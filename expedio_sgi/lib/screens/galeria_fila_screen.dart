@@ -1,6 +1,7 @@
 // lib/screens/galeria_fila_screen.dart
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../services/api_service.dart';
 import 'visualizar_foto_screen.dart';
 
@@ -57,7 +58,7 @@ class _GaleriaFilaScreenState extends State<GaleriaFilaScreen> {
   Future<void> _adicionarFoto() async {
     final XFile? foto = await _picker.pickImage(
       source: ImageSource.camera,
-      imageQuality: 80,
+      imageQuality: 60,
     );
 
     if (foto != null && mounted) {
@@ -168,10 +169,17 @@ class _GaleriaFilaScreenState extends State<GaleriaFilaScreen> {
                     ),
                     child: Card(
                       clipBehavior: Clip.antiAlias,
-                      child: Image.network(
-                        imageUrl,
+                      //child: Image.network(
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child:CircularProgressIndicator(),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) =>
                             const Icon(
                               Icons.broken_image,
                               size: 40,

@@ -3,11 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'galeria_fila_screen.dart';
-//import 'package:shared_preferences/shared_preferences.dart'; // Adicionado para a lógica do som
 import '../services/api_service.dart';
 import 'gerenciar_fila_screen.dart';
-//import 'visualizar_foto_screen.dart';
-//import 'package:audioplayers/audioplayers.dart'; // Adicionado para o som de beep
 
 class GerenciarCarregamentoScreen extends StatefulWidget {
   final int carregamentoId;
@@ -36,6 +33,7 @@ class _GerenciarCarregamentoScreenState
   String? _errorMessage;
   List<dynamic> _listaDeFilas = [];
   bool _podeAdicionarNovaFila = false;
+  bool _podeFinalizarCarregamento = false;
 
   @override
   void initState() {
@@ -65,13 +63,33 @@ class _GerenciarCarregamentoScreenState
             _podeAdicionarNovaFila = true;
           } else {
             final ultimaFila = filas.last;
-            final double qtdDouble =
+            /* final double qtdDouble =
                 double.tryParse(
                   ultimaFila['total_quantidade']?.toString() ?? '0.0',
                 ) ??
                 0.0;
             final bool ultimaFilaTemItens = qtdDouble > 0;
-            _podeAdicionarNovaFila = ultimaFilaTemItens;
+            _podeAdicionarNovaFila = ultimaFilaTemItens;*/
+            _podeAdicionarNovaFila = (ultimaFila['total_fotos'] ?? 0) > 0;
+          }
+
+          if (filas.isEmpty) {
+            // Não pode finalizar um carregamento sem filas.
+            _podeFinalizarCarregamento = false;
+          } else {
+            // O método 'every' verifica se a condição é verdadeira para TODOS os elementos da lista.
+            final todasAsFilasEstaoCompletas = filas.every((fila) {
+              final bool temClientes = (fila['total_clientes'] ?? 0) > 0;
+              final bool temFotos = (fila['total_fotos'] ?? 0) > 0;
+              final bool temProdutos =
+                  (double.tryParse(
+                        fila['total_quantidade']?.toString() ?? '0.0',
+                      ) ??
+                      0.0) >
+                  0;
+              return temClientes && temFotos && temProdutos;
+            });
+            _podeFinalizarCarregamento = todasAsFilasEstaoCompletas;
           }
         });
       } else {
@@ -158,45 +176,6 @@ class _GerenciarCarregamentoScreenState
     }
   }
 
-/*  Future<void> _confirmarExcluirFoto(int filaId, int numeroFila) async {
-    final bool? confirmado = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Excluir Foto da Fila #$numeroFila?'),
-        content: const Text(
-          'A foto atual será removida permanentemente. Você poderá tirar uma nova foto em seguida.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Excluir'),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmado == true && mounted) {
-      final response = await _apiService.excluirFotoFila(filaId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response['message']),
-            backgroundColor: response['success'] ? Colors.green : Colors.red,
-          ),
-        );
-        if (response['success']) {
-          _carregarFilas();
-        }
-      }
-    }
-  }
-*/
-  
   Future<void> _excluirFila(int filaId, int numeroFila) async {
     final bool? confirmado = await showDialog<bool>(
       context: context,
@@ -236,14 +215,14 @@ class _GerenciarCarregamentoScreenState
   }
 
   Future<void> _finalizarCarregamento() async {
-    if (_podeAdicionarNovaFila == false && _listaDeFilas.isNotEmpty) {
+   /*if (_podeAdicionarNovaFila == false && _listaDeFilas.isNotEmpty) {
       final ultimaFila = _listaDeFilas.last;
       _mostrarDialogoResolverFotoPendente(
         ultimaFila['fila_id'],
         ultimaFila['fila_numero_sequencial'],
       );
       return;
-    }
+    }*/
 
     final bool? confirmar = await showDialog<bool>(
       context: context,
@@ -326,14 +305,17 @@ class _GerenciarCarregamentoScreenState
         title: Text('Carreg. Nº ${widget.numeroCarregamento}'),
         actions: [
           IconButton(
-            onPressed: _finalizarCarregamento,
+            // onPressed: _finalizarCarregamento,
+            onPressed: _podeFinalizarCarregamento
+                ? _finalizarCarregamento
+                : null,
             icon: const Icon(Icons.check_circle_outline),
             tooltip: 'Finalizar Carregamento',
             style: IconButton.styleFrom(
               foregroundColor: Colors.white,
               backgroundColor: Colors.green,
-              disabledBackgroundColor: Colors.grey.shade300,
-              highlightColor: Colors.green.shade700,
+              disabledBackgroundColor: Colors.grey.shade400,
+              //highlightColor: Colors.green.shade700,
             ),
           ),
         ],
@@ -353,156 +335,6 @@ class _GerenciarCarregamentoScreenState
                     )
                   : ListView.builder(
                       itemCount: _listaDeFilas.length,
-
-                      /*  itemBuilder: (context, index) {
-                        final fila = _listaDeFilas[index];
-                        final bool temFoto =
-                            fila['fila_foto_path'] != null &&
-                            fila['fila_foto_path'].isNotEmpty;
-                        final bool ehUltimaFila =
-                            index == _listaDeFilas.length - 1;
-                        final double qtdDouble =
-                            double.tryParse(
-                              fila['total_quantidade']?.toString() ?? '0.0',
-                            ) ??
-                            0.0;
-                        final int totalCaixas = qtdDouble.toInt();*/
-
-                      /*  itemBuilder: (context, index) {
-                        final fila = _listaDeFilas[index];
-                        final int totalFotos = fila['total_fotos'] ?? 0;
-                        final bool temItens =
-                            (double.tryParse(
-                                  fila['total_quantidade']?.toString() ?? '0.0',
-                                ) ??
-                                0.0) >
-                            0;
-                        final bool ehUltimaFila =
-                            index == _listaDeFilas.length - 1;
-
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              child: Text('${fila['fila_numero_sequencial']}'),
-                            ),
-                            title: Text(
-                              'Fila #${fila['fila_numero_sequencial']}',
-                            ),
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Clientes: ${fila['total_clientes'] ?? 0}',
-                                  ),
-                                  Text('Total Caixas: $totalCaixas'),
-                                ],
-                              ),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (temItens) // Só mostra o botão de fotos se a fila tiver itens
-                                  // if (temFoto) ...[
-                                  IconButton(
-                                    // icon: const Icon(
-                                    icon: Badge(
-                                      /*     Icons.photo_library,
-                                      color: Colors.green,
-                                    ),*/
-                                      label: Text('$totalFotos'),
-                                      isLabelVisible: totalFotos > 0,
-                                      child: const Icon(Icons.photo_library),
-                                    ),
-                                    color: totalFotos > 0
-                                        ? Colors.blue
-                                        : Colors.grey,
-                                    tooltip: 'Gerenciar Fotos da Fila',
-
-                                    // onPressed: () async {
-                                    onPressed: () {
-                                      /*   final baseUrl = await _apiService
-                                          .getBaseUrlForImages();
-                                      if (mounted) {*/
-                                      Navigator.of(context)
-                                          .push(
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  /* VisualizarFotoScreen(
-                                                  partialImagePath:
-                                                      fila['fila_foto_path'],
-                                                  baseUrl: baseUrl,*/
-                                                  GaleriaFilaScreen(
-                                                    filaId: fila['fila_id'],
-                                                    filaNumero:
-                                                        fila['fila_numero_sequencial'],
-                                                  ),
-                                            ),
-                                          )
-                                          .then((_) => _carregarFilas());
-                                    },
-                                    /*},
-                                    tooltip: 'Ver Foto',*/
-                                  ),
-                                /* IconButton(
-                                    icon: const Icon(
-                                      Icons.hide_image,
-                                      color: Colors.red,
-                                    ),
-                                    onPressed: () => _confirmarExcluirFoto(
-                                      fila['fila_id'],
-                                      fila['fila_numero_sequencial'],
-                                    ),
-                                    tooltip: 'Excluir Foto',
-                                  ),
-                                ],
-                                if (totalCaixas > 0 && !temFoto)
-                                  IconButton(
-                                    icon: const Icon(Icons.camera_alt),
-                                    onPressed: () =>
-                                        _selecionarEEnviarFoto(fila['fila_id']),
-                                    tooltip: 'Tirar Foto para Encerrar Fila',
-                                  ),*/
-                                //if (ehUltimaFila && !temFoto)
-                                if (ehUltimaFila &&
-                                    totalFotos == 0 &&
-                                    !temItens)
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      color: Colors.redAccent,
-                                    ),
-                                    onPressed: () => _excluirFila(
-                                      fila['fila_id'],
-                                      fila['fila_numero_sequencial'],
-                                    ),
-                                    tooltip: 'Excluir Fila',
-                                  ),
-                              ],
-                            ),
-                            onTap: () {
-                              Navigator.of(context)
-                                  .push(
-                                    MaterialPageRoute(
-                                      builder: (context) => GerenciarFilaScreen(
-                                        filaId: fila['fila_id'],
-                                        filaNumero:
-                                            fila['fila_numero_sequencial'],
-                                        carregamentoId: widget.carregamentoId,
-                                      ),
-                                    ),
-                                  )
-                                  .then((_) => _carregarFilas());
-                            },
-                          ),
-                        );
-                      },
-*/
                       itemBuilder: (context, index) {
                         // 1. Organizando as variáveis no início para maior clareza
                         final fila = _listaDeFilas[index];
