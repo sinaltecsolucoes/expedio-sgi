@@ -5,40 +5,31 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  //  static const String _baseUrl = 'http://10.0.0.250/marchef/public/api.php';
-
-  // Função para buscar o IP salvo e montar a URL base dinamicamente
-  /*  Future<String> _getBaseUrl() async {
+  Future<String> _getServerRoot() async {
     final prefs = await SharedPreferences.getInstance();
-    // Busca o IP salvo. Se não houver, usa um valor padrão.
-    final ip =
-        prefs.getString('server_ip') ??
-       // '192.168.3.27'; // IP padrão aqui quando usar o celular fisico
-    //prefs.getString('server_ip') ?? '10.0.2.2'; // IP padrão aqui quando usar emulador
-     prefs.getString('server_ip') ?? 'marchef.ddns.net'; // IP padrão aqui quando usar servidor
-    //return 'http://$ip/marchef/public/api.php';
-    return 'http://$ip/marchef/public/api.php';
-  }*/
+    final customAddress = prefs.getString('server_ip');
+
+    if (customAddress != null && customAddress.isNotEmpty) {
+      // Se o usuário digitou um endereço/IP, usamos ele com http
+      return 'http://$customAddress';
+    } else {
+      // Caso contrário, usamos a URL online padrão com https
+      return 'https://marchef.ddns.net';
+    }
+  }
 
   Future<String> _getBaseUrl() async {
-    final prefs = await SharedPreferences.getInstance();
+    final root = await _getServerRoot();
+    return '$root/marchef/public/api.php';
+  }
 
-    // 1. Tenta buscar um IP/endereço personalizado salvo nas configurações.
-    final String? customUrl = prefs.getString('server_ip');
-
-    // 2. Verifica se o campo não está vazio ou nulo.
-    if (customUrl != null && customUrl.isNotEmpty) {
-      // Se o usuário digitou um IP (ex: 192.168.0.10), monta a URL local.
-      return 'http://$customUrl/marchef/public/api.php';
-    } else {
-      // 3. Se não houver nada salvo, usa a URL online como padrão.
-      return 'https://marchef.ddns.net/marchef/public/api.php';
-    }
+  Future<String> getBaseUrlForImages() async {
+    final root = await _getServerRoot();
+    return '$root/marchef/public'; // Retorna a URL da pasta public
   }
 
   // Função para fazer login
   Future<Map<String, dynamic>> login(String login, String senha) async {
-    // final url = Uri.parse('$_baseUrl?action=login');
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=login');
 
@@ -85,7 +76,6 @@ class ApiService {
 
   // Função para buscar os dados iniciais de um novo carregamento
   Future<Map<String, dynamic>> getDadosNovoCarregamento() async {
-    // final url = Uri.parse('$_baseUrl?action=getDadosNovoCarregamento');
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=getDadosNovoCarregamento');
     final authData = await getAuthData();
@@ -125,7 +115,6 @@ class ApiService {
     required String horaInicio,
     required String ordemExpedicao,
   }) async {
-    //final url = Uri.parse('$_baseUrl?action=salvarCarregamentoHeader');
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=salvarCarregamentoHeader');
     final authData = await getAuthData();
@@ -194,10 +183,6 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getCarregamentosFinalizados({
     int limit = 3,
   }) async {
-    /* final url = Uri.parse(
-      '$_baseUrl?action=getCarregamentosFinalizados&limit=$limit',
-    );*/
-
     final baseUrl = await _getBaseUrl();
 
     // 2. Usa a nova URL para montar o endereço final
@@ -231,10 +216,6 @@ class ApiService {
   Future<Map<String, dynamic>> getResumoCarregamento(
     String carregamentoId,
   ) async {
-    /* final url = Uri.parse(
-      '$_baseUrl?action=getResumoCarregamento&carregamentoId=$carregamentoId',
-    );*/
-
     final baseUrl = await _getBaseUrl();
 
     // 2. Usa a nova URL para montar o endereço final
@@ -280,10 +261,6 @@ class ApiService {
   Future<Map<String, dynamic>> getFilasPorCarregamento(
     int carregamentoId,
   ) async {
-    /*  final url = Uri.parse(
-      '$_baseUrl?action=getFilasPorCarregamento&carregamentoId=$carregamentoId',
-    );*/
-
     final baseUrl = await _getBaseUrl();
 
     // 2. Usa a nova URL para montar o endereço final
@@ -339,7 +316,6 @@ class ApiService {
     required String horaInicio,
     required String ordemExpedicao,
   }) async {
-    //final url = Uri.parse('$_baseUrl?action=atualizarCarregamentoHeader');
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=atualizarCarregamentoHeader');
     final authData = await getAuthData();
@@ -399,7 +375,6 @@ class ApiService {
 
   // Busca os detalhes de uma fila específica.
   Future<Map<String, dynamic>> getDetalhesFila(int filaId) async {
-    //final url = Uri.parse('$_baseUrl?action=getDetalhesFila&filaId=$filaId');
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=getDetalhesFila&filaId=$filaId');
     final authData = await getAuthData();
@@ -420,8 +395,6 @@ class ApiService {
 
   // Valida um QR Code lido com a API
   Future<Map<String, dynamic>> validarLeitura(String qrCode) async {
-    //final baseUrl = await _getBaseUrl();
-    //final url = Uri.parse('$_baseUrl?action=validarLeitura');
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=validarLeitura');
     final authData = await getAuthData();
@@ -480,7 +453,7 @@ class ApiService {
     });
 
     // ==========================================================
-    // A PARTE DE DEPURAÇÃO ESTÁ AQUI
+    // DEPURAÇÃO
     // ==========================================================
     print("--- DEBUG FLUTTER: ENVIANDO DADOS PARA SALVAR ---");
     print(body);
@@ -548,12 +521,6 @@ class ApiService {
     }
   }
 
-  Future<String> getBaseUrlForImages() async {
-    final prefs = await SharedPreferences.getInstance();
-    final ip = prefs.getString('server_ip') ?? '10.0.0.250';
-    return 'http://$ip/marchef/public'; // Retorna a URL da pasta public
-  }
-
   Future<Map<String, dynamic>> finalizarCarregamento(int carregamentoId) async {
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=finalizarCarregamento');
@@ -577,7 +544,7 @@ class ApiService {
     }
   }
 
-  // NOVA FUNÇÃO: Exclui um carregamento.
+  // Função para exclui um carregamento.
   Future<Map<String, dynamic>> excluirCarregamento(int carregamentoId) async {
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=excluirCarregamento');
@@ -662,7 +629,7 @@ class ApiService {
     }
   }
 
-  // NOVA FUNÇÃO: Exclui uma fila específica.
+  // Função para excluir uma fila específica.
   Future<Map<String, dynamic>> excluirFila(int filaId) async {
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse(
@@ -715,8 +682,8 @@ class ApiService {
     }
   }
 
-  // NOVA FUNÇÃO: Exclui a foto de uma fila.
-  Future<Map<String, dynamic>> excluirFotoFila(int filaId) async {
+  // Função para excluir a foto de uma fila.
+  /*  Future<Map<String, dynamic>> excluirFotoFila(int filaId) async {
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=excluirFotoFila');
     final authData = await getAuthData();
@@ -732,6 +699,49 @@ class ApiService {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({'filaId': filaId}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+*/
+
+  Future<Map<String, dynamic>> getFotosDaFila(int filaId) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=getFotosDaFila&filaId=$filaId');
+    final authData = await getAuthData();
+    final token = authData['token'];
+
+    if (token == null) return {'success': false, 'message': 'Não autenticado'};
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> excluirFotoFila(int fotoId) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=excluirFotoFila');
+    final authData = await getAuthData();
+    final token = authData['token'];
+
+    if (token == null) return {'success': false, 'message': 'Não autenticado'};
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'fotoId': fotoId}), // Enviando fotoId
       );
       return jsonDecode(response.body);
     } catch (e) {

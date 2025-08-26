@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 import 'novo_carregamento_screen.dart';
-import 'leitura_qrcode_screen.dart';
+//import 'leitura_qrcode_screen.dart';
 import 'resumo_carregamento_screen.dart';
 import 'detalhes_carregamento_screen.dart';
 

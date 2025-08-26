@@ -2,11 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Adicionado para a lógica do som
+import 'galeria_fila_screen.dart';
+//import 'package:shared_preferences/shared_preferences.dart'; // Adicionado para a lógica do som
 import '../services/api_service.dart';
 import 'gerenciar_fila_screen.dart';
-import 'visualizar_foto_screen.dart';
-import 'package:audioplayers/audioplayers.dart'; // Adicionado para o som de beep
+//import 'visualizar_foto_screen.dart';
+//import 'package:audioplayers/audioplayers.dart'; // Adicionado para o som de beep
 
 class GerenciarCarregamentoScreen extends StatefulWidget {
   final int carregamentoId;
@@ -64,10 +65,13 @@ class _GerenciarCarregamentoScreenState
             _podeAdicionarNovaFila = true;
           } else {
             final ultimaFila = filas.last;
-            final temFotoNaUltimaFila =
-                ultimaFila['fila_foto_path'] != null &&
-                ultimaFila['fila_foto_path'].isNotEmpty;
-            _podeAdicionarNovaFila = temFotoNaUltimaFila;
+            final double qtdDouble =
+                double.tryParse(
+                  ultimaFila['total_quantidade']?.toString() ?? '0.0',
+                ) ??
+                0.0;
+            final bool ultimaFilaTemItens = qtdDouble > 0;
+            _podeAdicionarNovaFila = ultimaFilaTemItens;
           }
         });
       } else {
@@ -154,7 +158,7 @@ class _GerenciarCarregamentoScreenState
     }
   }
 
-  Future<void> _confirmarExcluirFoto(int filaId, int numeroFila) async {
+/*  Future<void> _confirmarExcluirFoto(int filaId, int numeroFila) async {
     final bool? confirmado = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -191,7 +195,8 @@ class _GerenciarCarregamentoScreenState
       }
     }
   }
-
+*/
+  
   Future<void> _excluirFila(int filaId, int numeroFila) async {
     final bool? confirmado = await showDialog<bool>(
       context: context,
@@ -348,7 +353,8 @@ class _GerenciarCarregamentoScreenState
                     )
                   : ListView.builder(
                       itemCount: _listaDeFilas.length,
-                      itemBuilder: (context, index) {
+
+                      /*  itemBuilder: (context, index) {
                         final fila = _listaDeFilas[index];
                         final bool temFoto =
                             fila['fila_foto_path'] != null &&
@@ -360,7 +366,19 @@ class _GerenciarCarregamentoScreenState
                               fila['total_quantidade']?.toString() ?? '0.0',
                             ) ??
                             0.0;
-                        final int totalCaixas = qtdDouble.toInt();
+                        final int totalCaixas = qtdDouble.toInt();*/
+
+                      /*  itemBuilder: (context, index) {
+                        final fila = _listaDeFilas[index];
+                        final int totalFotos = fila['total_fotos'] ?? 0;
+                        final bool temItens =
+                            (double.tryParse(
+                                  fila['total_quantidade']?.toString() ?? '0.0',
+                                ) ??
+                                0.0) >
+                            0;
+                        final bool ehUltimaFila =
+                            index == _listaDeFilas.length - 1;
 
                         return Card(
                           margin: const EdgeInsets.symmetric(
@@ -389,31 +407,49 @@ class _GerenciarCarregamentoScreenState
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (temFoto) ...[
+                                if (temItens) // Só mostra o botão de fotos se a fila tiver itens
+                                  // if (temFoto) ...[
                                   IconButton(
-                                    icon: const Icon(
-                                      Icons.photo_library,
+                                    // icon: const Icon(
+                                    icon: Badge(
+                                      /*     Icons.photo_library,
                                       color: Colors.green,
+                                    ),*/
+                                      label: Text('$totalFotos'),
+                                      isLabelVisible: totalFotos > 0,
+                                      child: const Icon(Icons.photo_library),
                                     ),
-                                    onPressed: () async {
-                                      final baseUrl = await _apiService
+                                    color: totalFotos > 0
+                                        ? Colors.blue
+                                        : Colors.grey,
+                                    tooltip: 'Gerenciar Fotos da Fila',
+
+                                    // onPressed: () async {
+                                    onPressed: () {
+                                      /*   final baseUrl = await _apiService
                                           .getBaseUrlForImages();
-                                      if (mounted) {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                VisualizarFotoScreen(
+                                      if (mounted) {*/
+                                      Navigator.of(context)
+                                          .push(
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  /* VisualizarFotoScreen(
                                                   partialImagePath:
                                                       fila['fila_foto_path'],
-                                                  baseUrl: baseUrl,
-                                                ),
-                                          ),
-                                        );
-                                      }
+                                                  baseUrl: baseUrl,*/
+                                                  GaleriaFilaScreen(
+                                                    filaId: fila['fila_id'],
+                                                    filaNumero:
+                                                        fila['fila_numero_sequencial'],
+                                                  ),
+                                            ),
+                                          )
+                                          .then((_) => _carregarFilas());
                                     },
-                                    tooltip: 'Ver Foto',
+                                    /*},
+                                    tooltip: 'Ver Foto',*/
                                   ),
-                                  IconButton(
+                                /* IconButton(
                                     icon: const Icon(
                                       Icons.hide_image,
                                       color: Colors.red,
@@ -431,8 +467,11 @@ class _GerenciarCarregamentoScreenState
                                     onPressed: () =>
                                         _selecionarEEnviarFoto(fila['fila_id']),
                                     tooltip: 'Tirar Foto para Encerrar Fila',
-                                  ),
-                                if (ehUltimaFila && !temFoto)
+                                  ),*/
+                                //if (ehUltimaFila && !temFoto)
+                                if (ehUltimaFila &&
+                                    totalFotos == 0 &&
+                                    !temItens)
                                   IconButton(
                                     icon: const Icon(
                                       Icons.delete,
@@ -443,6 +482,112 @@ class _GerenciarCarregamentoScreenState
                                       fila['fila_numero_sequencial'],
                                     ),
                                     tooltip: 'Excluir Fila',
+                                  ),
+                              ],
+                            ),
+                            onTap: () {
+                              Navigator.of(context)
+                                  .push(
+                                    MaterialPageRoute(
+                                      builder: (context) => GerenciarFilaScreen(
+                                        filaId: fila['fila_id'],
+                                        filaNumero:
+                                            fila['fila_numero_sequencial'],
+                                        carregamentoId: widget.carregamentoId,
+                                      ),
+                                    ),
+                                  )
+                                  .then((_) => _carregarFilas());
+                            },
+                          ),
+                        );
+                      },
+*/
+                      itemBuilder: (context, index) {
+                        // 1. Organizando as variáveis no início para maior clareza
+                        final fila = _listaDeFilas[index];
+                        final int totalFotos = fila['total_fotos'] ?? 0;
+                        final int totalClientes = fila['total_clientes'] ?? 0;
+                        final double qtdDouble =
+                            double.tryParse(
+                              fila['total_quantidade']?.toString() ?? '0.0',
+                            ) ??
+                            0.0;
+                        final int totalCaixas = qtdDouble.toInt();
+                        final bool temItens = totalCaixas > 0;
+                        final bool ehUltimaFila =
+                            index == _listaDeFilas.length - 1;
+
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              child: Text('${fila['fila_numero_sequencial']}'),
+                            ),
+                            title: Text(
+                              'Fila #${fila['fila_numero_sequencial']}',
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                'Clientes: $totalClientes • Caixas: $totalCaixas',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Botão da Galeria de Fotos (só aparece se a fila tiver itens)
+                                if (temItens)
+                                  IconButton(
+                                    icon: Badge(
+                                      label: Text('$totalFotos'),
+                                      isLabelVisible: totalFotos > 0,
+                                      child: const Icon(Icons.photo_library),
+                                    ),
+                                    color: totalFotos > 0
+                                        ? Colors.blue
+                                        : Colors.grey,
+                                    tooltip: 'Gerenciar Fotos da Fila',
+                                    onPressed: () {
+                                      // A sintaxe aqui foi corrigida
+                                      Navigator.of(context)
+                                          .push(
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  GaleriaFilaScreen(
+                                                    filaId: fila['fila_id'],
+                                                    filaNumero:
+                                                        fila['fila_numero_sequencial'],
+                                                  ),
+                                            ),
+                                          )
+                                          .then(
+                                            (_) => _carregarFilas(),
+                                          ); // Recarrega a lista ao voltar
+                                    }, // Faltava fechar o onPressed corretamente
+                                  ),
+
+                                // Botão de Excluir Fila (só aparece em condições específicas)
+                                if (ehUltimaFila &&
+                                    totalFotos == 0 &&
+                                    !temItens)
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.redAccent,
+                                    ),
+                                    onPressed: () => _excluirFila(
+                                      fila['fila_id'],
+                                      fila['fila_numero_sequencial'],
+                                    ),
+                                    tooltip: 'Excluir Fila Vazia',
                                   ),
                               ],
                             ),

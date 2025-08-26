@@ -7,7 +7,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import '../services/cache_service.dart';
-import 'leitura_qrcode_screen.dart';
+//import 'leitura_qrcode_screen.dart';
 import 'gerenciar_carregamento_screen.dart';
 
 class UpperCaseTextFormatter extends TextInputFormatter {

@@ -15,8 +15,9 @@ class VisualizarFotoScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Monta a URL completa da imagem
-    final fullImageUrl =
-        '${baseUrl.replaceAll('/api.php', '')}/$partialImagePath';
+    /* final fullImageUrl =
+        '${baseUrl.replaceAll('/api.php', '')}/$partialImagePath';*/
+    final fullImageUrl = '$baseUrl/$partialImagePath';
     print('Carregando imagem de: $fullImageUrl');
 
     return Scaffold(

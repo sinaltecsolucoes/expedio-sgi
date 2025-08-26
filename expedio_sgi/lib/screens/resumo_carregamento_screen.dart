@@ -3,7 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
-import 'visualizar_foto_screen.dart';
+//import 'visualizar_foto_screen.dart';
+import 'galeria_fila_screen.dart';
 
 class ResumoCarregamentoScreen extends StatefulWidget {
   final String carregamentoId;
@@ -68,20 +69,6 @@ class _ResumoCarregamentoScreenState extends State<ResumoCarregamentoScreen> {
     }
   }
 
-  String _formatDateTime(String? dateString, String format) {
-    if (dateString == null || dateString.isEmpty) return 'N/A';
-    try {
-      // Tenta converter a string para um objeto DateTime
-      final DateTime date = DateTime.parse(dateString);
-      // Formata a data/hora de acordo com o padrão solicitado (ex: 'dd/MM/yyyy' ou 'HH:mm:ss')
-      return DateFormat(format, 'pt_BR').format(date);
-    } catch (e) {
-      // Se a string não for um formato de data válido (ex: já é "10:30"),
-      // apenas a retorna. Isso evita erros.
-      return dateString;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -134,6 +121,18 @@ class _ResumoCarregamentoScreenState extends State<ResumoCarregamentoScreen> {
   }
 
   Widget _buildInfoGeralCard(Map<String, dynamic> header) {
+    // Parse dos totais gerais com segurança
+    final double totalCaixasGeralDouble =
+        double.tryParse(header['total_caixas_geral']?.toString() ?? '0.0') ??
+        0.0;
+    final int totalCaixasGeral = totalCaixasGeralDouble.toInt();
+
+    final double totalQuilosGeral =
+        double.tryParse(header['total_quilos_geral']?.toString() ?? '0.0') ??
+        0.0;
+    // Formata para ter 2 casas decimais
+    final String totalQuilosFormatado = totalQuilosGeral.toStringAsFixed(2);
+
     return Card(
       elevation: 2,
       child: Padding(
@@ -151,10 +150,6 @@ class _ResumoCarregamentoScreenState extends State<ResumoCarregamentoScreen> {
               'Início:',
               _formatarData(header['car_hora_inicio'], apenasHora: true),
             ),
-
-            //_buildInfoRow('Início:', header['car_hora_inicio'] ?? 'N/A'),
-
-            // _buildInfoRow('Fim:', _formatDateTime(header['car_data_finalizacao'], 'HH:mm:ss')),
             _buildInfoRow(
               'Fim:',
               _formatarData(header['car_data_finalizacao'], apenasHora: true),
@@ -162,6 +157,9 @@ class _ResumoCarregamentoScreenState extends State<ResumoCarregamentoScreen> {
             _buildInfoRow('Responsável:', header['responsavel'] ?? 'N/A'),
             _buildInfoRow('Placa(s):', header['car_placa_veiculo'] ?? 'N/A'),
             _buildInfoRow('Lacre:', header['car_lacre'] ?? 'N/A'),
+            const Divider(height: 24),
+            _buildInfoRow('Total de Caixas:', totalCaixasGeral.toString()),
+            _buildInfoRow('Total de Quilos:', '$totalQuilosFormatado kg'),
           ],
         ),
       ),
@@ -183,13 +181,9 @@ class _ResumoCarregamentoScreenState extends State<ResumoCarregamentoScreen> {
   }
 
   Widget _buildFilaCard(Map<String, dynamic> fila) {
-    final List<dynamic> itens = fila['itens'] ?? [];
-    final bool temFoto =
-        fila['fila_foto_path'] != null && fila['fila_foto_path'].isNotEmpty;
-
     // Agrupar itens por cliente
     final Map<String, List<dynamic>> clientesAgrupados = {};
-    for (var item in itens) {
+    for (var item in (fila['itens'] as List<dynamic>)) {
       final clienteNome =
           item['cliente_razao_social'] ?? 'Cliente Desconhecido';
       if (!clientesAgrupados.containsKey(clienteNome)) {
@@ -198,27 +192,49 @@ class _ResumoCarregamentoScreenState extends State<ResumoCarregamentoScreen> {
       clientesAgrupados[clienteNome]!.add(item);
     }
 
+    final int totalClientes = (fila['total_clientes'] is int)
+        ? fila['total_clientes']
+        : int.tryParse(fila['total_clientes']?.toString() ?? '0') ?? 0;
+
+    final double totalCaixasDouble =
+        double.tryParse(fila['total_caixas']?.toString() ?? '0.0') ?? 0.0;
+    final int totalCaixas = totalCaixasDouble.toInt();
+
+    final int totalFotos = (fila['total_fotos'] is int)
+        ? fila['total_fotos']
+        : int.tryParse(fila['total_fotos']?.toString() ?? '0') ?? 0;
+    final bool temFotos = totalFotos > 0;
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       child: ExpansionTile(
         leading: CircleAvatar(child: Text('${fila['fila_numero_sequencial']}')),
         title: Text('Fila #${fila['fila_numero_sequencial']}'),
-        trailing: temFoto
+
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4.0),
+          child: Text(
+            'Clientes: $totalClientes • Caixas: $totalCaixas',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+          ),
+        ),
+
+        trailing: temFotos
             ? IconButton(
-                icon: const Icon(Icons.photo_library, color: Colors.blue),
+                icon: Badge(
+                  label: Text('$totalFotos'),
+                  child: const Icon(Icons.photo_library, color: Colors.blue),
+                ),
                 tooltip: 'Ver Foto da Fila',
-                onPressed: () async {
-                  final baseUrl = await _apiService.getBaseUrlForImages();
-                  if (mounted) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => VisualizarFotoScreen(
-                          partialImagePath: fila['fila_foto_path'],
-                          baseUrl: baseUrl,
-                        ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => GaleriaFilaScreen(
+                        filaId: fila['fila_id'],
+                        filaNumero: fila['fila_numero_sequencial'],
                       ),
-                    );
-                  }
+                    ),
+                  );
                 },
               )
             : const SizedBox(width: 48), // Espaço vazio se não houver foto
