@@ -7,19 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'cache_service.dart';
 
 class ApiService {
-  /*  Future<String> _getServerRoot() async {
-    final prefs = await SharedPreferences.getInstance();
-    final customAddress = prefs.getString('server_ip');
-
-    if (customAddress != null && customAddress.isNotEmpty) {
-      // Se o usuário digitou um endereço/IP, usamos ele com http
-      return 'http://$customAddress';
-    } else {
-      // Caso contrário, usamos a URL online padrão com https
-      return 'https://marchef.ddns.net';
-    }
-  } */
-
   Future<String> _getServerRoot() async {
     final prefs = await SharedPreferences.getInstance();
     final customAddress = prefs.getString('server_ip');
@@ -40,73 +27,11 @@ class ApiService {
     return '$root/marchef/public/api.php';
   }
 
-  /* Future<String> _getBaseUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    final ip = prefs.getString('server_ip');
-
-    // AQUI ESTÁ A NOVA VERIFICAÇÃO INTELIGENTE
-    if (ip == null || ip.isEmpty) {
-      // Se o IP não estiver configurado, lança um erro específico e claro.
-      throw Exception(
-        'IP do servidor não configurado. Por favor, configure-o na tela de login.',
-      );
-    }
-
-    return 'http://$ip/marchef/public/api.php';
-  } */
-
-  /*  Future<String> _getBaseUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    final ip = prefs.getString('server_ip');
-
-    // REGRA 1: Se um IP local foi configurado, use-o.
-    if (ip != null && ip.trim().isNotEmpty) {
-      print('Usando IP local para testes: $ip');
-      return 'http://${ip.trim()}/marchef/public/api.php';
-    } else {
-      // REGRA 2 (Fallback): Se nenhum IP local for encontrado, usa o endereço do servidor de produção.
-      // POR FAVOR, CONFIRME SE ESTE É O ENDEREÇO CORRETO DO SEU SERVIDOR WEB.
-      print('Nenhum IP local encontrado. Usando servidor de produção.');
-      return 'https://marchef.ddns.net/marchef/public/api.php';
-    }
-  } */
-
   Future<String> getBaseUrlForImages() async {
     final root = await _getServerRoot();
     return '$root/marchef/public'; // Retorna a URL da pasta public
   }
 
-  // Função para fazer login
-  /*  Future<Map<String, dynamic>> login(String login, String senha) async {
-    final baseUrl = await _getBaseUrl();
-    final url = Uri.parse('$baseUrl?action=login');
-  
-    try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'login': login, 'senha': senha}),
-      );
-
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        String token = responseData['token'];
-        String userName = responseData['userName'];
-        await _saveAuthData(token, userName);
-        return {'success': true, 'message': 'Login bem-sucedido!'};
-      } else {
-        return {
-          'success': false,
-          'message': responseData['message'] ?? 'Erro desconhecido.',
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Erro de conexão: $e'};
-    }
-  } */
-
-  // --- FUNÇÃO DE LOGIN ---
   /*  Future<Map<String, dynamic>> login(String login, String senha) async {
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=login');
@@ -123,33 +48,77 @@ class ApiService {
     } else {
       throw Exception('Falha ao autenticar: ${response.body}');
     }
-  } */
+  }
+*/
+
+  /*  Future<Map<String, dynamic>> login(String login, String senha) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=login');
+    print('Tentando conectar a: $url');
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({'login': login, 'senha': senha}),
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      // Adicionamos a verificação de sucesso e a chamada para salvar o token
+      if (body['success'] == true) {
+        final token = body['token'];
+        final userName = body['usu_nome'];
+        // SALVA O TOKEN E O NOME DE UTILIZADOR
+        await _saveAuthData(token, userName);
+      }
+      return body;
+    } else {
+      throw Exception('Falha ao autenticar: ${response.body}');
+    }
+  }
+*/
 
   Future<Map<String, dynamic>> login(String login, String senha) async {
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=login');
-    print('Tentando conectar a: $url');
+    print('Tentando conectar a URL: $url');
 
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: jsonEncode({'login': login, 'senha': senha}),
-    );
+    try {
+      print('Iniciando requisição HTTP POST...');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({'login': login, 'senha': senha}),
+      );
+      print('Requisição finalizada com status: ${response.statusCode}');
 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Falha ao autenticar: ${response.body}');
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        if (body['success'] == true) {
+          final token = body['token'];
+          // Garante que userName é sempre uma String, mesmo que a resposta da API seja null
+          final userName = body['usu_nome'] ?? '';
+          await _saveAuthData(token, userName);
+        }
+        return body;
+      } else {
+        throw Exception('Falha ao autenticar: ${response.body}');
+      }
+    } catch (e) {
+      print('Erro de conexão ou requisição: $e');
+      throw Exception(
+        'Erro de rede ou conexão. Por favor, verifique sua conexão ou o endereço do servidor.',
+      );
     }
   }
 
   // Função privada para salvar os dados no dispositivo
-  Future<void> _saveAuthData(String token, String userName) async {
+  /* Future<void> _saveAuthData(String token, String userName) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('api_token', token);
     await prefs.setString('user_name', userName);
   }
-
+*/
   // Função para buscar dados do token e do nome de usuário
   Future<Map<String, String?>> getAuthData() async {
     final prefs = await SharedPreferences.getInstance();
@@ -159,36 +128,14 @@ class ApiService {
     };
   }
 
-  // Função para buscar os dados iniciais de um novo carregamento
-  /*  Future<Map<String, dynamic>> getDadosNovoCarregamento() async {
-    final baseUrl = await _getBaseUrl();
-    final url = Uri.parse('$baseUrl?action=getDadosNovoCarregamento');
-    final authData = await getAuthData();
-    final token = authData['token'];
-
-    if (token == null) {
-      return {'success': false, 'message': 'Usuário não autenticado.'};
-    }
-
-    try {
-      final response = await http.get(
-        url,
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        final responseData = jsonDecode(response.body);
-        return {
-          'success': false,
-          'message': responseData['message'] ?? 'Falha ao carregar dados.',
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Erro de conexão: $e'};
-    }
-  } */
+  Future<void> _saveAuthData(String token, String userName) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('api_token', token);
+    await prefs.setString(
+      'user_name',
+      userName,
+    ); // Garante que a chave é sempre 'user_name'
+  }
 
   Future<Map<String, dynamic>> getDadosNovoCarregamento() async {
     final cacheService = CacheService();
@@ -222,41 +169,57 @@ class ApiService {
     required String numero,
     required String data,
     required String clienteOrganizadorId,
-    required String lacre,
-    required String placa,
-    required String horaInicio,
-    //required String ordemExpedicao,
+    String? transportadoraId,
+    String? lacre,
+    String? placa,
+    String? horaInicio,
+    String? motoristaNome,
+    String? motoristaCpf,
     required String tipo,
+    String? ordemExpedicaoId,
   }) async {
+    print('ApiService: Cliente ID recebido da tela: $clienteOrganizadorId');
+    final cacheService = CacheService();
+    final token = await cacheService.getToken();
+
+    if (token == null) {
+      throw Exception('Token não encontrado, faça o login novamente.');
+    }
+
     final baseUrl = await _getBaseUrl();
-    final url = Uri.parse('$baseUrl?action=salvarCarregamentoHeader');
-    final authData = await getAuthData();
-    final token = authData['token'];
+    final url = Uri.parse('$baseUrl?action=salvar_carregamento_header');
 
-    if (token == null)
-      return {'success': false, 'message': 'Usuário não autenticado.'};
+    // Construímos o corpo da requisição com todos os campos
+    final body = {
+      'numero': numero,
+      'data': data,
+      'clienteOrganizadorId': clienteOrganizadorId,
+      'transportadoraId': transportadoraId,
+      'lacre': lacre,
+      'placa': placa,
+      'horaInicio': horaInicio,
+      'motoristaNome': motoristaNome,
+      'motoristaCpf': motoristaCpf,
+      'tipo': tipo,
+      'ordemExpedicaoId': ordemExpedicaoId,
+    };
 
-    try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'numero': numero,
-          'data': data,
-          'clienteOrganizadorId': clienteOrganizadorId,
-          'lacre': lacre,
-          'placa': placa,
-          'hora_inicio': horaInicio,
-          //'ordem_expedicao': ordemExpedicao,
-          'tipo': tipo,
-        }),
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Erro de conexão: $e'};
+    // Removemos chaves com valores nulos para não enviar dados desnecessários
+    body.removeWhere((key, value) => value == null);
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode(body),
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Falha ao salvar o cabeçalho: ${response.body}');
     }
   }
 
@@ -882,36 +845,6 @@ class ApiService {
       );
     }
   }
-
-  /// Registra a entrada de um item em um endereço de estoque.
-  /* Future<bool> registrarEntrada(int enderecoId, String qrCode) async {
-    final baseUrl = await _getBaseUrl();
-
-    final url = Uri.parse('$baseUrl?action=registrar_entrada_estoque');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json; charset=UTF-T'},
-
-      // A CORREÇÃO ESTÁ AQUI:
-      // Usamos json.encode() para converter nosso mapa (com int e String)
-      // para uma única String no formato JSON.
-      body: json.encode({'endereco_id': enderecoId, 'qrcode': qrCode}),
-    );
-
-    if (response.statusCode == 200) {
-      final body = json.decode(response.body);
-      return body['status'] == 'success';
-    } else {
-      try {
-        // Tenta decodificar a mensagem de erro da API
-        final body = json.decode(response.body);
-        throw Exception('Falha ao registrar entrada: ${body['message']}');
-      } catch (_) {
-        // Se a resposta não for um JSON válido, mostra a resposta bruta
-        throw Exception('Falha ao registrar entrada: ${response.body}');
-      }
-    }
-  } */
 
   Future<Map<String, dynamic>> registrarEntrada(
     int enderecoId,

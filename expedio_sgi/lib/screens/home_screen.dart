@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:expedio_sgi/screens/gerenciar_carregamento_screen.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 import 'novo_carregamento_screen.dart';
@@ -143,190 +144,170 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Painel Principal'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
-            onPressed: _logout,
-          ),
-        ],
-      ),
-      // Adicionado o RefreshIndicator para poder "puxar para atualizar"
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 1. Mensagem de Boas-vindas
-              /*Text(
-                'Bem-vindo(a),',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              Text(
-                _userName,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),*/
-
-              // 2. Botão grande para Novo Carregamento
-              ElevatedButton.icon(
-                icon: const Icon(Icons.add, size: 28),
-                label: const Text('Iniciar Novo Carregamento'),
-                onPressed: () {
-                  Navigator.of(context)
-                      .push(
-                        /* MaterialPageRoute(
-                          builder: (context) => const NovoCarregamentoScreen(),*/
-                        MaterialPageRoute(
-                          builder: (context) => const SelecaoTipoSaidaScreen(),
-                        ),
-                      )
-                      .then(
-                        (_) => _loadInitialData(),
-                      ); // Recarrega os dados ao voltar
-                },
-              ),
-              const SizedBox(height: 32),
-
-              // 3. Futuro que constrói as listas
-              FutureBuilder<Map<String, List<dynamic>>>(
-                future: _listasCarregamentos,
-                builder: (context, snapshot) {
-                  // Enquanto espera, mostra um loading
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  // Se deu algum erro de conexão
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Text('Erro ao carregar listas: ${snapshot.error}'),
-                    );
-                  }
-                  // Se os dados chegaram
-                  if (snapshot.hasData) {
-                    final ativos = snapshot.data!['ativos']!;
-                    final finalizados = snapshot.data!['finalizados']!;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildCarregamentoSection(
-                          context,
-                          'Carregamentos Ativos',
-                          ativos,
-                        ),
-                        const SizedBox(height: 24),
-                        _buildCarregamentoSection(
-                          context,
-                          'Carregamentos Finalizados',
-                          finalizados,
-                        ),
-                      ],
-                    );
-                  }
-                  // Caso padrão
-                  return const Center(
-                    child: Text('Nenhum carregamento encontrado.'),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Widget auxiliar para construir cada seção de lista
-  Widget _buildCarregamentoSection(
-    BuildContext context,
-    String title,
-    List<dynamic> carregamentos,
-  ) {
+  Widget _buildCarregamentoSection(String titulo, List<dynamic> carregamentos) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge),
-        const Divider(),
-        if (carregamentos.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16.0),
-            child: Text('Nenhum carregamento nesta categoria.'),
+        Padding(
+          padding: const EdgeInsets.only(left: 16.0, top: 16.0, bottom: 8.0),
+          child: Text(
+            titulo,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-        // Mapeia a lista de dados para uma lista de Cards
-        ...carregamentos.map((carregamento) {
-          bool isAtivo = title.contains('Ativos');
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 4.0),
-            child: ListTile(
-              leading: Icon(
-                Icons.local_shipping,
-                color: isAtivo ? Colors.orange : Colors.green,
-              ),
-
-              title: Text(
-                'Nº ${carregamento['numero']} - ${carregamento['nome_cliente']}',
-              ),
-              subtitle: Text(
-                'Responsável: ${carregamento['responsavel']}\nData: ${_formatarData(carregamento['data'])}',
-              ),
-
-              // Ícone de lixeira
-              trailing: isAtivo
-                  ? IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _excluirCarregamento(
-                        carregamento['carregamentoId'],
-                        carregamento['numero'].toString(),
-                      ),
-                      tooltip: 'Excluir Carregamento',
-                    )
-                  : null, // Não mostra o botão para carregamentos finalizados
-
-              onTap: () {
-                final carregamentoId = carregamento['carregamentoId'];
-                if (carregamentoId == null) return;
-
-                if (isAtivo) {
-                  // Se for ATIVO, vai para a nova tela de DETALHES
-                  Navigator.of(context)
-                      .push(
-                        MaterialPageRoute(
-                          builder: (context) => DetalhesCarregamentoScreen(
-                            carregamentoId: carregamentoId,
-                            numeroCarregamento: carregamento['numero']
-                                .toString(),
-                          ),
-                        ),
-                      )
-                      .then((_) => _loadInitialData());
-                } else {
-                  // Se for FINALIZADO, continua indo para o RESUMO
-                  Navigator.of(context)
-                      .push(
-                        MaterialPageRoute(
-                          builder: (context) => ResumoCarregamentoScreen(
-                            carregamentoId: carregamentoId.toString(),
-                          ),
-                        ),
-                      )
-                      .then((_) => _loadInitialData());
-                }
-              },
+        ),
+        if (carregamentos.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              'Nenhum carregamento nesta categoria.',
+              style: TextStyle(color: Colors.grey[600]),
             ),
-          );
-        }).toList(),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: carregamentos.length,
+            itemBuilder: (context, index) {
+              final item = carregamentos[index];
+              return Card(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.local_shipping,
+                    color: Colors.orange,
+                    size: 40,
+                  ),
+                  title: Text(
+                    'Nº ${item['numero']?.toString().padLeft(4, '0') ?? 'null'} - ${item['cliente_nome'] ?? 'null'}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Responsável: ${item['responsavel'] ?? 'null'}'),
+                      Text('Data: ${_formatarData(item['data'])}'),
+                    ],
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () {
+                      _excluirCarregamento(
+                        item['carregamentoId'] as int,
+                        item['numero'].toString(),
+                      );
+                    },
+                  ),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => GerenciarCarregamentoScreen(
+                          carregamentoId: item['carregamentoId'] as int,
+                          numeroCarregamento: item['numero'].toString(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
       ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Painel Principal'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Sair',
+              onPressed: _logout,
+            ),
+          ],
+        ),
+        // Adicionado o RefreshIndicator para poder "puxar para atualizar"
+        body: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // 2. Botão grande para Novo Carregamento
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add, size: 28),
+                  label: const Text('Iniciar Novo Carregamento'),
+                  onPressed: () {
+                    Navigator.of(context)
+                        .push(
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const SelecaoTipoSaidaScreen(),
+                          ),
+                        )
+                        .then(
+                          (_) => _loadInitialData(),
+                        ); // Recarrega os dados ao voltar
+                  },
+                ),
+                const SizedBox(height: 32),
+
+                // 3. Futuro que constrói as listas
+                FutureBuilder<Map<String, List<dynamic>>>(
+                  future: _listasCarregamentos,
+                  builder: (context, snapshot) {
+                    // Enquanto espera, mostra um loading
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    // Se deu algum erro de conexão
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          'Erro ao carregar listas: ${snapshot.error}',
+                        ),
+                      );
+                    }
+                    // Se os dados chegaram
+                    if (snapshot.hasData) {
+                      final ativos = snapshot.data!['ativos']!;
+                      final finalizados = snapshot.data!['finalizados']!;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildCarregamentoSection(
+                            'Carregamentos Ativos',
+                            ativos,
+                          ),
+                          const SizedBox(height: 24),
+                          _buildCarregamentoSection(
+                            'Carregamentos Finalizados',
+                            finalizados,
+                          ),
+                        ],
+                      );
+                    }
+                    // Caso padrão
+                    return const Center(
+                      child: Text('Nenhum carregamento encontrado.'),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

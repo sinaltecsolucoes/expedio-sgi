@@ -1,13 +1,11 @@
 // lib/screens/novo_carregamento_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:dropdown_search/dropdown_search.dart'; // Importa o pacote de busca
-import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+import 'package:dropdown_search/dropdown_search.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../services/api_service.dart';
-import '../services/cache_service.dart';
-//import 'leitura_qrcode_screen.dart';
 import 'gerenciar_carregamento_screen.dart';
 
 class UpperCaseTextFormatter extends TextInputFormatter {
@@ -23,21 +21,10 @@ class UpperCaseTextFormatter extends TextInputFormatter {
   }
 }
 
-/* class NovoCarregamentoScreen extends StatefulWidget {
-  const NovoCarregamentoScreen({super.key});
-
-  @override
-  State<NovoCarregamentoScreen> createState() => _NovoCarregamentoScreenState();
-} */
-
 class NovoCarregamentoScreen extends StatefulWidget {
-  // ADICIONAMOS ESTE PARÂMETRO PARA RECEBER OS DADOS
   final Map<String, dynamic>? dadosIniciaisOE;
 
-  const NovoCarregamentoScreen({
-    super.key,
-    this.dadosIniciaisOE, // O construtor agora aceita o parâmetro
-  });
+  const NovoCarregamentoScreen({super.key, this.dadosIniciaisOE});
 
   @override
   State<NovoCarregamentoScreen> createState() => _NovoCarregamentoScreenState();
@@ -46,21 +33,17 @@ class NovoCarregamentoScreen extends StatefulWidget {
 class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
   final _formKey = GlobalKey<FormState>();
   final ApiService _apiService = ApiService();
-  final CacheService _cacheService = CacheService();
 
   final _lacreController = TextEditingController();
   final _placaController = TextEditingController();
-  //final _ordemExpedicaoController = TextEditingController();
-  final _tipoController = TextEditingController();
+  final _ordemExpedicaoController = TextEditingController();
 
   final placaFormatter = MaskTextInputFormatter(
     mask: 'AAA-@### / AAA-@###',
     filter: {
       "#": RegExp(r'[0-9]'),
       "A": RegExp(r'[a-zA-Z]'),
-      "@": RegExp(
-        r'[a-zA-Z0-9]',
-      ), // Aceita letra ou número (para o padrão Mercosul)
+      "@": RegExp(r'[a-zA-Z0-9]'), // Aceita letra ou número para Mercosul
     },
   );
 
@@ -72,94 +55,37 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
   bool _isSaving = false;
   String? _errorMessage;
 
+  bool get _isModoOE => widget.dadosIniciaisOE != null;
+
   @override
   void initState() {
     super.initState();
     _carregarDadosIniciais();
   }
 
-  /* Future<void> _carregarDadosIniciais() async {
-    try {
-      final results = await Future.wait([
-        _apiService.getDadosNovoCarregamento(),
-        _cacheService.getClientes(),
-      ]);
-
-      final responseApi = results[0] as Map<String, dynamic>;
-      final responseClientes = results[1] as List<Map<String, dynamic>>;
-
-      if (mounted) {
-        setState(() {
-          if (responseApi['success'] == true) {
-            _proximoNumero = int.tryParse(
-              responseApi['proximo_numero'].toString(),
-            );
-            _clientes = responseClientes;
-
-            _horaInicio = TimeOfDay.now();
-            if (_proximoNumero != null) {
-              final numeroFormatado = _proximoNumero.toString().padLeft(4, '0');
-              final mesAno = DateFormat('MM.yyyy').format(DateTime.now());
-              //_ordemExpedicaoController.text = '$numeroFormatado.$mesAno';
-            }
-          } else {
-            _errorMessage = responseApi['message'] ?? 'Erro desconhecido.';
-          }
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
-      }
-    }
-  } */
-
-  // Substitua a sua função _carregarDadosIniciais por esta
-
   Future<void> _carregarDadosIniciais() async {
     try {
-      final results = await Future.wait([
-        _apiService.getDadosNovoCarregamento(),
-        _cacheService.getClientes(),
-      ]);
+      final responseApi = await _apiService.getDadosNovoCarregamento();
+      if (!mounted) return;
 
-      final responseApi = results[0] as Map<String, dynamic>;
-      final responseClientes = results[1] as List<Map<String, dynamic>>;
-
-      if (mounted) {
+      if (responseApi['success'] == true) {
         setState(() {
-          if (responseApi['success'] == true) {
-            _proximoNumero = int.tryParse(
-              responseApi['proximo_numero'].toString(),
-            ); // Corrigido
-            _clientes = responseClientes;
-            _horaInicio = TimeOfDay.now();
+          _proximoNumero = int.tryParse(
+            responseApi['proximo_numero'].toString(),
+          );
+          _clientes = List<Map<String, dynamic>>.from(responseApi['clientes']);
+          _horaInicio = TimeOfDay.now();
 
-            // --- LÓGICA DE PRÉ-PREENCHIMENTO ADICIONADA AQUI ---
-            if (widget.dadosIniciaisOE != null) {
-              final oeData = widget.dadosIniciaisOE!;
-              final int clienteId = oeData['cliente_id'];
-
-              // Procura o cliente na lista de clientes carregada
-              _clienteSelecionado = _clientes.firstWhere(
-                (c) => c['ent_codigo'] == clienteId,
-                orElse: () => null,
-              );
-            }
-            // ---------------------------------------------------
-
-            if (_proximoNumero != null && widget.dadosIniciaisOE == null) {
-              final numeroFormatado = _proximoNumero.toString().padLeft(4, '0');
-              final mesAno = DateFormat('MM.yyyy').format(DateTime.now());
-              _ordemExpedicaoController.text = '$numeroFormatado.$mesAno';
-            }
-          } else {
-            _errorMessage = responseApi['message'] ?? 'Erro desconhecido.';
+          // Se estamos no modo OE, apenas preenchemos o campo da OE
+          if (_isModoOE) {
+            final oeData = widget.dadosIniciaisOE!;
+            _ordemExpedicaoController.text = oeData['oe_numero'].toString();
           }
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = responseApi['message'] ?? 'Erro desconhecido.';
           _isLoading = false;
         });
       }
@@ -173,81 +99,41 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
     }
   }
 
-  /* Future<void> _salvarCabecalho() async {
-    if (_formKey.currentState?.validate() != true) return;
-
-    setState(() {
-      _isSaving = true;
-    });
-
-    final numeroFormatado = _proximoNumero!.toString().padLeft(4, '0');
-
-    final response = await _apiService.salvarCarregamentoHeader(
-      numero: numeroFormatado,
-      data: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-      clienteOrganizadorId: _clienteSelecionado!['id'].toString(),
-      lacre: _lacreController.text,
-      placa: _placaController.text,
-      horaInicio: _horaInicio!.format(context),
-      //ordemExpedicao: _ordemExpedicaoController.text,
-      tipo: 'AVULSA',
-    );
-
-    setState(() {
-      _isSaving = false;
-    });
-
-    if (mounted) {
-      if (response['success'] == true) {
-        final carregamentoId = response['carregamentoId'];
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => GerenciarCarregamentoScreen(
-              carregamentoId: carregamentoId,
-              numeroCarregamento:
-                  numeroFormatado, // Passamos o número para exibir no título
-              //ordemExpedicao: _ordemExpedicaoController.text,
-            ),
-          ),
-        );
-      } else {
+  Future<void> _salvarCabecalho() async {
+    // 1. O PONTO DE VERIFICAÇÃO FINAL: o valor do cliente
+    final clienteSelecionado = _clienteSelecionado;
+    if (clienteSelecionado == null) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro: ${response['message']}'),
+          const SnackBar(
+            content: Text('Por favor, selecione um cliente.'),
             backgroundColor: Colors.red,
           ),
         );
       }
+      return;
     }
-  } */
 
-  // Substitua a sua função _salvarCabecalho por esta
-
-  Future<void> _salvarCabecalho() async {
-    if (_formKey.currentState?.validate() != true) return;
+    // 2. Garante que os outros campos do formulário são válidos
+    if (_formKey.currentState?.validate() != true) {
+      return;
+    }
 
     setState(() => _isSaving = true);
-
-    // Define se a tela está no modo "Ordem de Expedição"
-    final bool isModoOE = widget.dadosIniciaisOE != null;
 
     try {
       final response = await _apiService.salvarCarregamentoHeader(
         numero: _proximoNumero!.toString(),
         data: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        clienteOrganizadorId: _clienteSelecionado!['ent_codigo'].toString(),
-        transportadoraId: _transportadoraSelecionada?['ent_codigo']?.toString(),
-        // Envia o ID da OE se estiver no modo OE
-        ordemExpedicaoId: isModoOE
-            ? widget.dadosIniciaisOE!['oe_id'].toString()
-            : null,
+        // Usamos a variável local, que garantimos que não é nula
+        clienteOrganizadorId: clienteSelecionado['id'].toString(),
         lacre: _lacreController.text,
         placa: _placaController.text,
         horaInicio: _horaInicio!.format(context),
-        motoristaNome: _motoristaController.text,
-        motoristaCpf: _motoristaCpfController.text,
-        // Envia o tipo correto para a API
-        tipo: isModoOE ? 'ORDEM_EXPEDICAO' : 'AVULSA',
+        ordemExpedicaoId: _isModoOE
+            ? widget.dadosIniciaisOE!['oe_id'].toString()
+            : null,
+        tipo: _isModoOE ? 'ORDEM_EXPEDICAO' : 'AVULSA',
       );
 
       if (mounted) {
@@ -258,7 +144,6 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
               builder: (context) => GerenciarCarregamentoScreen(
                 carregamentoId: carregamentoId,
                 numeroCarregamento: _proximoNumero.toString(),
-                ordemExpedicao: _ordemExpedicaoController.text,
               ),
             ),
           );
@@ -285,22 +170,12 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
     }
   }
 
-  Future<void> _selecionarHora() async {
-    final TimeOfDay? horaSelecionada = await showTimePicker(
-      context: context,
-      initialTime: _horaInicio ?? TimeOfDay.now(),
-    );
-    if (horaSelecionada != null) {
-      setState(() {
-        _horaInicio = horaSelecionada;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Novo Carregamento')),
+      appBar: AppBar(
+        title: Text(_isModoOE ? 'Carregar por OE' : 'Nova Saída Avulsa'),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
@@ -318,147 +193,99 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Número: ${_proximoNumero != null ? _proximoNumero!.toString().padLeft(4, '0') : 'N/A'}',
-              style: const TextStyle(
-                fontSize:
-                    20, // Aumenta o tamanho da fonte (pode ajustar este valor)
-                fontWeight: FontWeight.bold, // Deixa o texto em negrito
-              ),
-              textAlign: TextAlign.center, // Centraliza o texto
+              'Número: ${_proximoNumero?.toString().padLeft(4, '0') ?? 'N/A'}',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
+
+            if (_isModoOE) ...[
+              TextFormField(
+                controller: _ordemExpedicaoController,
+                readOnly: true, // Bloqueado
+                decoration: const InputDecoration(
+                  labelText: 'Baseado na Ordem de Expedição Nº',
+                  border: OutlineInputBorder(),
+                  filled: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
             DropdownSearch<Map<String, dynamic>>(
-              popupProps: PopupProps.menu(
+              items: _clientes,
+              selectedItem: _clienteSelecionado,
+              onChanged: (value) => setState(() => _clienteSelecionado = value),
+              itemAsString: (item) => item['text'] ?? '',
+              popupProps: const PopupProps.menu(
                 showSearchBox: true,
                 searchFieldProps: TextFieldProps(
-                  decoration: InputDecoration(
-                    labelText: "Pesquisar cliente",
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: InputDecoration(labelText: "Pesquisar cliente"),
                 ),
-                itemBuilder: (context, item, isSelected) {
-                  return ListTile(title: Text(item['text'] ?? ''));
-                },
               ),
-              items: _clientes,
-              itemAsString: (Map<String, dynamic> cliente) =>
-                  cliente['text'] ?? '',
               dropdownDecoratorProps: const DropDownDecoratorProps(
                 dropdownSearchDecoration: InputDecoration(
                   labelText: 'Cliente Organizador',
                   border: OutlineInputBorder(),
                 ),
               ),
-              onChanged: (newValue) {
-                setState(() {
-                  _clienteSelecionado = newValue;
-                });
+              // Adiciona um validador para campo obrigatório
+              validator: (value) => value == null ? 'Campo obrigatório' : null,
+
+              // A nova função para comparar os itens
+              compareFn: (item, selectedItem) {
+                // Compara os itens pelo 'ent_codigo', que é o identificador único
+                return item['id'] == selectedItem['id'];
               },
-              selectedItem: _clienteSelecionado,
-              validator: (value) => value == null || value['id'] == null
-                  ? 'Selecione um cliente válido'
-                  : null,
             ),
-            const SizedBox(height: 24),
+
+            const SizedBox(height: 16),
+
+            TextFormField(
+              controller: _placaController,
+              // 1. APLICAMOS OS FORMATADORES
+              inputFormatters: [
+                // Primeiro, a máscara que força o formato
+                placaFormatter,
+                // Segundo, o formatador que garante as maiúsculas
+                UpperCaseTextFormatter(),
+              ],
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                labelText: 'Placa(s) do Veículo',
+                hintText: 'AAA-1234 / BBB-5C67',
+                border: OutlineInputBorder(),
+              ),
+              // 2. O VALIDADOR FINAL (ainda importante)
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Campo obrigatório';
+                }
+                // A validação pode ser simplificada, pois a máscara já ajuda muito
+                if (value.trim().length < 8) {
+                  // Mínimo para uma placa com hífen
+                  return 'Placa incompleta.';
+                }
+                return null;
+              },
+            ),
+
+            const SizedBox(height: 16),
             TextFormField(
               controller: _lacreController,
               decoration: const InputDecoration(
                 labelText: 'Lacre',
                 border: OutlineInputBorder(),
               ),
-              validator: (value) =>
-                  (value == null || value.isEmpty) ? 'Campo obrigatório' : null,
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _placaController,
-              // 1. Aplica a máscara e converte para maiúsculas
-              inputFormatters: [placaFormatter, UpperCaseTextFormatter()],
-              textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(
-                labelText: 'Placa(s) do Veículo',
-                hintText: 'AAA-1234 ou AAA-1B23 / BBB-5C67',
-                border: OutlineInputBorder(),
-              ),
-              // 2. Adiciona a nova lógica de validação
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Campo obrigatório';
-                }
-
-                // Remove a máscara para validar apenas os caracteres
-                final placasString = value.replaceAll('-', '');
-                final placas = placasString
-                    .split('/')
-                    .map((p) => p.trim())
-                    .toList();
-
-                // Regex para validar placa antiga ou Mercosul
-                final RegExp placaRegex = RegExp(
-                  r'^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$',
-                );
-
-                // Valida a primeira placa
-                if (placas.isNotEmpty && placas[0].isNotEmpty) {
-                  if (placas[0].length != 7 ||
-                      !placaRegex.hasMatch(placas[0])) {
-                    return 'Placa 1 inválida.';
-                  }
-                } else {
-                  return 'Placa 1 inválida.';
-                }
-
-                // Se houver uma segunda placa, valida também
-                if (placas.length > 1 && placas[1].isNotEmpty) {
-                  if (placas[1].length != 7 ||
-                      !placaRegex.hasMatch(placas[1])) {
-                    return 'Placa 2 inválida.';
-                  }
-                }
-
-                // Se tudo estiver certo
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            InkWell(
-              onTap: _selecionarHora,
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Hora de Início',
-                  border: OutlineInputBorder(),
-                ),
-                child: Text(
-                  _horaInicio?.format(context) ?? 'Selecione uma hora',
-                ),
-              ),
-            ),
-
-            /*  const SizedBox(height: 16),
-            TextFormField(
-              controller: _ordemExpedicaoController,
-              decoration: const InputDecoration(
-                labelText: 'Ordem de Expedição',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) =>
-                  (value == null || value.isEmpty) ? 'Campo obrigatório' : null,
-            ),*/
             const SizedBox(height: 32),
             _isSaving
-                ? Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator())
                 : ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState?.validate() ?? false) {
-                        _salvarCabecalho();
-                      }
-                    },
-                    child: Text(
+                    onPressed: _salvarCabecalho,
+                    child: const Text(
                       'Salvar e Continuar',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontSize: 18),
                     ),
                   ),
           ],
