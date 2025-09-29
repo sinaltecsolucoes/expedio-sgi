@@ -5,6 +5,7 @@ import 'package:dropdown_search/dropdown_search.dart'; // Para o dialog de busca
 import '../services/api_service.dart';
 import '../services/cache_service.dart'; // Para buscar a lista de clientes
 import 'leitura_qrcode_screen.dart'; // A tela de destino
+import '../models/operacao_modo.dart';
 
 class GerenciarFilaScreen extends StatefulWidget {
   final int filaId;
@@ -188,6 +189,7 @@ class _GerenciarFilaScreenState extends State<GerenciarFilaScreen> {
             .push(
               MaterialPageRoute(
                 builder: (context) => LeituraQrCodeScreen(
+                  modo: OperacaoModo.saida,
                   carregamentoId: widget.carregamentoId,
                   filaId: widget.filaId,
                   clienteId: idClienteSelecionado,
@@ -207,6 +209,7 @@ class _GerenciarFilaScreenState extends State<GerenciarFilaScreen> {
           .push(
             MaterialPageRoute(
               builder: (context) => LeituraQrCodeScreen(
+                modo: OperacaoModo.saida,
                 carregamentoId: widget.carregamentoId,
                 filaId: widget.filaId,
                 clienteId: idClienteSelecionado,
@@ -391,6 +394,7 @@ class _GerenciarFilaScreenState extends State<GerenciarFilaScreen> {
                               .push(
                                 MaterialPageRoute(
                                   builder: (context) => LeituraQrCodeScreen(
+                                    modo: OperacaoModo.saida,
                                     carregamentoId: widget.carregamentoId,
                                     filaId: widget.filaId,
                                     clienteId: cliente['clienteId'],

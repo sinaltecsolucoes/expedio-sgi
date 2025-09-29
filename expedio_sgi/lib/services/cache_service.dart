@@ -1,6 +1,7 @@
 // lib/services/cache_service.dart
 
 import 'api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CacheService {
   // Instância privada e estática (Singleton)
@@ -31,12 +32,39 @@ class CacheService {
         _cachedClientes = List<Map<String, dynamic>>.from(response['clientes']);
       } else {
         // Se der erro, lança uma exceção para a tela poder tratar
-        throw Exception('Falha ao carregar clientes da API: ${response['message']}');
+        throw Exception(
+          'Falha ao carregar clientes da API: ${response['message']}',
+        );
       }
     } else {
       print('CACHE: Carregando clientes da memória (cache).');
     }
     // Retorna a lista (seja a nova ou a que já estava no caderno)
     return _cachedClientes!;
+  }
+
+  Future<void> saveUserName(String userName) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userName', userName);
+  }
+
+  Future<String?> getUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('userName');
+  }
+
+  Future<void> clear() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // Apaga todos os dados salvos
+  }
+
+  Future<void> saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('token', token);
+  }
+
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
   }
 }

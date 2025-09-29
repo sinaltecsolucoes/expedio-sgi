@@ -9,6 +9,7 @@ import 'novo_carregamento_screen.dart';
 //import 'leitura_qrcode_screen.dart';
 import 'resumo_carregamento_screen.dart';
 import 'detalhes_carregamento_screen.dart';
+import 'selecao_tipo_saida_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -165,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 1. Mensagem de Boas-vindas
-              Text(
+              /*Text(
                 'Bem-vindo(a),',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
@@ -175,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 24),*/
 
               // 2. Botão grande para Novo Carregamento
               ElevatedButton.icon(
@@ -184,8 +185,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () {
                   Navigator.of(context)
                       .push(
+                        /* MaterialPageRoute(
+                          builder: (context) => const NovoCarregamentoScreen(),*/
                         MaterialPageRoute(
-                          builder: (context) => const NovoCarregamentoScreen(),
+                          builder: (context) => const SelecaoTipoSaidaScreen(),
                         ),
                       )
                       .then(

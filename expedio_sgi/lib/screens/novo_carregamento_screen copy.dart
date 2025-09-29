@@ -23,21 +23,8 @@ class UpperCaseTextFormatter extends TextInputFormatter {
   }
 }
 
-/* class NovoCarregamentoScreen extends StatefulWidget {
-  const NovoCarregamentoScreen({super.key});
-
-  @override
-  State<NovoCarregamentoScreen> createState() => _NovoCarregamentoScreenState();
-} */
-
 class NovoCarregamentoScreen extends StatefulWidget {
-  // ADICIONAMOS ESTE PARÂMETRO PARA RECEBER OS DADOS
-  final Map<String, dynamic>? dadosIniciaisOE;
-
-  const NovoCarregamentoScreen({
-    super.key,
-    this.dadosIniciaisOE, // O construtor agora aceita o parâmetro
-  });
+  const NovoCarregamentoScreen({super.key});
 
   @override
   State<NovoCarregamentoScreen> createState() => _NovoCarregamentoScreenState();
@@ -78,7 +65,7 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
     _carregarDadosIniciais();
   }
 
-  /* Future<void> _carregarDadosIniciais() async {
+  Future<void> _carregarDadosIniciais() async {
     try {
       final results = await Future.wait([
         _apiService.getDadosNovoCarregamento(),
@@ -116,64 +103,9 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
         });
       }
     }
-  } */
-
-  // Substitua a sua função _carregarDadosIniciais por esta
-
-  Future<void> _carregarDadosIniciais() async {
-    try {
-      final results = await Future.wait([
-        _apiService.getDadosNovoCarregamento(),
-        _cacheService.getClientes(),
-      ]);
-
-      final responseApi = results[0] as Map<String, dynamic>;
-      final responseClientes = results[1] as List<Map<String, dynamic>>;
-
-      if (mounted) {
-        setState(() {
-          if (responseApi['success'] == true) {
-            _proximoNumero = int.tryParse(
-              responseApi['proximo_numero'].toString(),
-            ); // Corrigido
-            _clientes = responseClientes;
-            _horaInicio = TimeOfDay.now();
-
-            // --- LÓGICA DE PRÉ-PREENCHIMENTO ADICIONADA AQUI ---
-            if (widget.dadosIniciaisOE != null) {
-              final oeData = widget.dadosIniciaisOE!;
-              final int clienteId = oeData['cliente_id'];
-
-              // Procura o cliente na lista de clientes carregada
-              _clienteSelecionado = _clientes.firstWhere(
-                (c) => c['ent_codigo'] == clienteId,
-                orElse: () => null,
-              );
-            }
-            // ---------------------------------------------------
-
-            if (_proximoNumero != null && widget.dadosIniciaisOE == null) {
-              final numeroFormatado = _proximoNumero.toString().padLeft(4, '0');
-              final mesAno = DateFormat('MM.yyyy').format(DateTime.now());
-              _ordemExpedicaoController.text = '$numeroFormatado.$mesAno';
-            }
-          } else {
-            _errorMessage = responseApi['message'] ?? 'Erro desconhecido.';
-          }
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
-      }
-    }
   }
 
-  /* Future<void> _salvarCabecalho() async {
+  Future<void> _salvarCabecalho() async {
     if (_formKey.currentState?.validate() != true) return;
 
     setState(() {
@@ -218,70 +150,6 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
           ),
         );
       }
-    }
-  } */
-
-  // Substitua a sua função _salvarCabecalho por esta
-
-  Future<void> _salvarCabecalho() async {
-    if (_formKey.currentState?.validate() != true) return;
-
-    setState(() => _isSaving = true);
-
-    // Define se a tela está no modo "Ordem de Expedição"
-    final bool isModoOE = widget.dadosIniciaisOE != null;
-
-    try {
-      final response = await _apiService.salvarCarregamentoHeader(
-        numero: _proximoNumero!.toString(),
-        data: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        clienteOrganizadorId: _clienteSelecionado!['ent_codigo'].toString(),
-        transportadoraId: _transportadoraSelecionada?['ent_codigo']?.toString(),
-        // Envia o ID da OE se estiver no modo OE
-        ordemExpedicaoId: isModoOE
-            ? widget.dadosIniciaisOE!['oe_id'].toString()
-            : null,
-        lacre: _lacreController.text,
-        placa: _placaController.text,
-        horaInicio: _horaInicio!.format(context),
-        motoristaNome: _motoristaController.text,
-        motoristaCpf: _motoristaCpfController.text,
-        // Envia o tipo correto para a API
-        tipo: isModoOE ? 'ORDEM_EXPEDICAO' : 'AVULSA',
-      );
-
-      if (mounted) {
-        if (response['success'] == true) {
-          final carregamentoId = response['carregamentoId'];
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => GerenciarCarregamentoScreen(
-                carregamentoId: carregamentoId,
-                numeroCarregamento: _proximoNumero.toString(),
-                ordemExpedicao: _ordemExpedicaoController.text,
-              ),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erro: ${response['message']}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao salvar: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
     }
   }
 

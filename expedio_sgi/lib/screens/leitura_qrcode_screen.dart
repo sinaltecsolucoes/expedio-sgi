@@ -1,25 +1,30 @@
 // lib/screens/leitura_qrcode_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+//import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../services/api_service.dart';
+import '../models/operacao_modo.dart';
 
 class LeituraQrCodeScreen extends StatefulWidget {
-  final int carregamentoId;
-  final int filaId;
-  final int clienteId;
-  final int filaNumero;
+  final OperacaoModo modo;
+  final int? carregamentoId;
+  final int? filaId;
+  final int? clienteId;
+  final int? filaNumero;
   final List<Map<String, dynamic>>? produtosIniciais;
+  final int? enderecoId;
 
   const LeituraQrCodeScreen({
     super.key,
-    required this.carregamentoId,
-    required this.filaId,
-    required this.clienteId,
-    required this.filaNumero,
+    required this.modo,
+    this.carregamentoId,
+    this.filaId,
+    this.clienteId,
+    this.filaNumero,
     this.produtosIniciais,
+    this.enderecoId,
   });
 
   @override
@@ -31,142 +36,93 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
   final List<Map<String, dynamic>> _produtosAgrupados = [];
   bool _isProcessing = false;
   bool _isSaving = false;
-
   String? _lastScannedCode;
   DateTime _lastScanTime = DateTime.now();
 
   @override
   void initState() {
     super.initState();
-    // Se a tela recebeu produtos iniciais, ela já começa com eles na lista
-    if (widget.produtosIniciais != null &&
-        widget.produtosIniciais!.isNotEmpty) {
-      final Map<String, Map<String, dynamic>> agrupados = {};
-
-      for (var produto in widget.produtosIniciais!) {
-        // UNIFICAÇÃO: A chave para agrupar e exibir é sempre 'produtoNome'
-        final String key =
-            produto['produtoTexto']?.toString() ?? 'Produto Desconhecido';
-
-        // CONVERSÃO SEGURA: Converte a quantidade para double (aceita "1.000") e depois para int
-        final double qtdDouble =
-            double.tryParse(produto['quantidade'].toString()) ?? 0.0;
-        final int quantidade = qtdDouble.toInt();
-
-        if (agrupados.containsKey(key)) {
-          agrupados[key]!['quantidade'] += quantidade;
-        } else {
-          // CRIA UM NOVO MAPA UNIFICADO, garantindo que os tipos estejam corretos
-          agrupados[key] = {
-            'produtoNome': key,
-            'quantidade': quantidade,
-            'produtoId': produto['produtoId'],
-            'loteId': produto['loteId'],
-            'itemId': produto['itemId'],
-          };
-        }
-      }
-      _produtosAgrupados.addAll(agrupados.values);
+    if (widget.modo == OperacaoModo.saida && widget.produtosIniciais != null) {
+      _carregarProdutosIniciais();
     }
   }
 
-  Future<void> _salvarOuAtualizarLeituras() async {
-    // A validação de lista vazia foi movida para o início para maior clareza
-    if (_produtosAgrupados.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nenhum produto para salvar.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
+  void _carregarProdutosIniciais() {
+    // A sua lógica para carregar produtos iniciais continua a mesma
+    final Map<String, Map<String, dynamic>> agrupados = {};
+    for (var produto in widget.produtosIniciais!) {
+      final String key =
+          produto['produtoTexto']?.toString() ?? 'Produto Desconhecido';
+      final int quantidade =
+          (double.tryParse(produto['quantidade'].toString()) ?? 0.0).toInt();
 
-    setState(() {
-      _isSaving = true;
-    });
-
-    final response = await _apiService.atualizarLeituras(
-      carregamentoId: widget.carregamentoId,
-      filaId: widget.filaId,
-      clienteId: widget.clienteId,
-      leituras: _produtosAgrupados,
-    );
-
-    if (mounted) {
-      if (response['success'] == true) {
-        Navigator.of(context).pop(); // Volta para a tela anterior com sucesso
+      if (agrupados.containsKey(key)) {
+        agrupados[key]!['quantidade'] += quantidade;
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro: ${response['message']}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        agrupados[key] = {
+          'produtoNome': key,
+          'quantidade': quantidade,
+          'produtoId': produto['produtoId'],
+          'loteId': produto['loteId'],
+          'itemId': produto['itemId'],
+        };
       }
     }
-
-    if (mounted) {
-      setState(() {
-        _isSaving = false;
-      });
-    }
+    setState(() {
+      _produtosAgrupados.addAll(agrupados.values);
+    });
   }
 
-  /*  Future<void> _onDetect(BarcodeCapture capture) async {
+  // --- FUNÇÃO DE LEITURA CORRIGIDA ---
+
+  /* Future<void> _onDetect(BarcodeCapture capture) async {
     if (_isProcessing || _isSaving) return;
 
     final barcode = capture.barcodes.firstOrNull;
     if (barcode?.rawValue == null) return;
 
-    final String codigoLido = barcode!.rawValue!;
-
+    final String codigoLido = barcode.rawValue!;
     final now = DateTime.now();
-    if (codigoLido == _lastScannedCode &&
-        now.difference(_lastScanTime).inSeconds < 2) {
+    if (codigoLido == _lastScannedCode && now.difference(_lastScanTime).inSeconds < 2) {
       return;
     }
 
     setState(() {
       _isProcessing = true;
+      _lastScannedCode = codigoLido;
+      _lastScanTime = now;
     });
 
     try {
-      final resultado = await _apiService.validarLeitura(codigoLido);
+      Map<String, dynamic> resultado;
+
+      // **AQUI ESTÁ A MUDANÇA PRINCIPAL**
+      // Verificamos o modo PRIMEIRO e chamamos a API correta
+      if (widget.modo == OperacaoModo.entrada) {
+        // MODO ENTRADA: Chama a função que valida E aloca no estoque
+        resultado = await _apiService.registrarEntrada(widget.enderecoId!, codigoLido);
+      } else {
+        // MODO SAÍDA: Continua a usar apenas a validação
+        resultado = await _apiService.validarLeitura(codigoLido);
+      }
 
       if (mounted && resultado['success'] == true) {
-        final prefs = await SharedPreferences.getInstance();
-        final bool somAtivado = prefs.getBool('beep_sound_enabled') ?? true;
-        if (somAtivado) {
-          final player = AudioPlayer();
-          player.setReleaseMode(ReleaseMode.release);
-          await player.play(AssetSource('sounds/beep-leituraQR.mp3'));
-        }
+        final player = AudioPlayer();
+        player.setReleaseMode(ReleaseMode.release);
+        await player.play(AssetSource('sounds/beep-leituraQR.mp3'));
+        
+        // A API de entrada devolve os dados dentro de uma chave "data"
+        final dadosParaLista = resultado['data'] ?? resultado;
+        _adicionarProdutoNaListaLocal(dadosParaLista);
 
-        setState(() {
-          _lastScannedCode = codigoLido;
-          _lastScanTime = now;
-
-          // UNIFICAÇÃO: A chave do nome do produto lido também é 'produtoNome'
-          final String produtoNome =
-              resultado['produto'] ?? 'Produto Desconhecido';
-          final index = _produtosAgrupados.indexWhere(
-            (p) => p['produtoNome'] == produtoNome,
+        if (widget.modo == OperacaoModo.entrada) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Entrada registrada com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
           );
-
-          if (index != -1) {
-            _produtosAgrupados[index]['quantidade']++;
-          } else {
-            // CRIA UM NOVO MAPA UNIFICADO, com a mesma estrutura do initState
-            _produtosAgrupados.add({
-              'produtoNome': produtoNome,
-              'quantidade': 1,
-              'produtoId': resultado['produtoId'],
-              'loteId': resultado['loteIdHeader'],
-              'itemId': null,
-            });
-          }
-        });
+        }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -175,6 +131,10 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
           ),
         );
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ Erro: ${e.toString()}')));
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -182,17 +142,22 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
         });
       }
     }
-  }
-*/
+  } */
 
-  // Em leitura_qrcode_screen.dart
   Future<void> _onDetect(BarcodeCapture capture) async {
     if (_isProcessing || _isSaving) return;
 
     final barcode = capture.barcodes.firstOrNull;
-    if (barcode?.rawValue == null) return;
 
-    final String codigoLido = barcode!.rawValue!;
+    // --- CORREÇÃO DE NULL SAFETY APLICADA AQUI ---
+    // Fazemos uma verificação explícita e segura. Se não houver barcode ou valor,
+    // a função simplesmente para aqui e espera pela próxima imagem da câmara.
+    if (barcode == null || barcode.rawValue == null) {
+      return;
+    }
+    // Daqui para baixo, o Dart tem a certeza de que 'barcode' e 'barcode.rawValue' não são nulos.
+    final String codigoLido = barcode.rawValue!;
+    // ---------------------------------------------
 
     final now = DateTime.now();
     if (codigoLido == _lastScannedCode &&
@@ -202,54 +167,38 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
 
     setState(() {
       _isProcessing = true;
+      _lastScannedCode = codigoLido;
+      _lastScanTime = now;
     });
 
     try {
-      final resultado = await _apiService.validarLeitura(codigoLido);
+      Map<String, dynamic> resultado;
+
+      if (widget.modo == OperacaoModo.entrada) {
+        resultado = await _apiService.registrarEntrada(
+          widget.enderecoId!,
+          codigoLido,
+        );
+      } else {
+        resultado = await _apiService.validarLeitura(codigoLido);
+      }
 
       if (mounted && resultado['success'] == true) {
-        final prefs = await SharedPreferences.getInstance();
-        final bool somAtivado = prefs.getBool('beep_sound_enabled') ?? true;
+        final player = AudioPlayer();
+        player.setReleaseMode(ReleaseMode.release);
+        await player.play(AssetSource('sounds/beep-leituraQR.mp3'));
 
-        if (somAtivado) {
-          final player = AudioPlayer();
-          player.setReleaseMode(ReleaseMode.release);
-          await player.play(AssetSource('sounds/beep-leituraQR.mp3'));
-        }
+        final dadosParaLista = resultado['data'] ?? resultado;
+        _adicionarProdutoNaListaLocal(dadosParaLista);
 
-        setState(() {
-          _lastScannedCode = codigoLido;
-          _lastScanTime = now;
-
-          // --- INÍCIO DA CORREÇÃO ---
-
-          // 1. Recriamos a chave completa (Produto + Lote) a partir do resultado do scan
-          final String produtoNome =
-              resultado['produto'] ?? 'Produto Desconhecido';
-          final String lote = resultado['lote'] ?? 'N/A';
-          final String chaveDeBusca = "$produtoNome (Lote: $lote)";
-
-          // 2. Usamos a chave completa para procurar na lista
-          final index = _produtosAgrupados.indexWhere(
-            (p) => p['produtoNome'] == chaveDeBusca, // <-- Comparação correta
+        if (widget.modo == OperacaoModo.entrada) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Entrada registrada com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
           );
-
-          if (index != -1) {
-            // Se encontrou, apenas incrementa a quantidade
-            _produtosAgrupados[index]['quantidade']++;
-          } else {
-            // Se não encontrou, adiciona um novo item usando a chave completa
-            _produtosAgrupados.add({
-              'produtoNome':
-                  chaveDeBusca, // <-- Usamos a chave completa aqui também
-              'quantidade': 1,
-              'produtoId': resultado['produtoId'],
-              'loteId': resultado['loteIdHeader'],
-              'itemId': null,
-            });
-          }
-          // --- FIM DA CORREÇÃO ---
-        });
+        }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -258,12 +207,69 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
           ),
         );
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Erro: ${e.toString()}')));
+      }
     } finally {
       if (mounted) {
         setState(() {
           _isProcessing = false;
         });
       }
+    }
+  }
+
+  void _adicionarProdutoNaListaLocal(Map<String, dynamic> dados) {
+    setState(() {
+      final String produtoNome = dados['produto'] ?? 'Produto Desconhecido';
+      final String lote = dados['lote'] ?? 'N/A';
+      final String chaveDeBusca = "$produtoNome (Lote: $lote)";
+
+      final index = _produtosAgrupados.indexWhere(
+        (p) => p['produtoNome'] == chaveDeBusca,
+      );
+
+      if (index != -1) {
+        _produtosAgrupados[index]['quantidade']++;
+      } else {
+        _produtosAgrupados.add({
+          'produtoNome': chaveDeBusca,
+          'quantidade': 1,
+          'produtoId': dados['produtoId'],
+          'loteId': dados['loteIdHeader'],
+        });
+      }
+    });
+  }
+
+  Future<void> _salvarLeiturasDeSaida() async {
+    // A sua função de salvar para saídas continua a mesma
+    if (_isSaving || _produtosAgrupados.isEmpty) return;
+    setState(() => _isSaving = true);
+    try {
+      final response = await _apiService.atualizarLeituras(
+        carregamentoId: widget.carregamentoId!,
+        filaId: widget.filaId!,
+        clienteId: widget.clienteId!,
+        leituras: _produtosAgrupados,
+      );
+      if (mounted) {
+        if (response['success'] == true) {
+          Navigator.of(context).pop(true); // Retorna true para a tela anterior
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erro: ${response['message']}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -271,32 +277,35 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
     if (_produtosAgrupados.isEmpty) return 0;
     return _produtosAgrupados
         .map((p) => p['quantidade'] as int)
-        .reduce((a, b) => a + b);
+        .fold(0, (a, b) => a + b);
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool isModoSaida = widget.modo == OperacaoModo.saida;
+    final String titulo = isModoSaida
+        ? 'Lendo para Fila #${widget.filaNumero}'
+        : 'Registrando Entrada';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Lendo para Fila #${widget.filaNumero}'),
+        title: Text(titulo),
         actions: [
-          if (_isSaving)
-            const Padding(
-              padding: EdgeInsets.only(right: 16.0),
-              child: Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(color: Colors.white),
-                ),
-              ),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.save),
-              onPressed: _salvarOuAtualizarLeituras,
-              tooltip: 'Salvar Alterações',
-            ),
+          if (isModoSaida) // Mostra o botão de salvar apenas no modo de saída
+            _isSaving
+                ? const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.save),
+                    onPressed: _salvarLeiturasDeSaida,
+                    tooltip: 'Salvar Leituras',
+                  ),
         ],
       ),
       body: Column(
@@ -330,33 +339,8 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
                     vertical: 8.0,
                   ),
                   child: Text(
-                    'Produtos Lidos: $_totalItensLidos',
+                    'Itens Lidos: $_totalItensLidos',
                     style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        flex: 5,
-                        child: Text(
-                          'Descrição',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      const Expanded(
-                        flex: 2,
-                        child: Text(
-                          'Quant.',
-                          textAlign: TextAlign.right,
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      const SizedBox(
-                        width: 48,
-                      ), // Espaço para o botão de lixeira
-                    ],
                   ),
                 ),
                 const Divider(),
@@ -365,43 +349,43 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
                     itemCount: _produtosAgrupados.length,
                     itemBuilder: (context, index) {
                       final item = _produtosAgrupados[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 4.0,
+                      return ListTile(
+                        title: Text(
+                          item['produtoNome'] ?? 'Produto Desconhecido',
                         ),
-                        child: Row(
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Expanded(
-                              flex: 5,
-                              child: Text(
-                                item['produtoNome'] ?? 'Produto Desconhecido',
+                            Text(
+                              item['quantidade'].toString(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
                             ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                item['quantidade'].toString(),
-                                textAlign: TextAlign.right,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            // **LÓGICA DO BOTÃO DE LIXEIRA CORRIGIDA**
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.redAccent,
                               ),
-                            ),
-                            // BOTÃO DE LIXEIRA PARA REMOVER O ITEM
-                            SizedBox(
-                              width: 48,
-                              child: IconButton(
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.redAccent,
-                                ),
-                                onPressed: () {
+                              onPressed: () {
+                                if (isModoSaida) {
+                                  // No modo Saída, apenas removemos da lista local
                                   setState(() {
                                     _produtosAgrupados.removeAt(index);
                                   });
-                                },
-                              ),
+                                } else {
+                                  // No modo Entrada, informamos que a ação não é possível
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Não é possível remover. Entrada já registrada.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
                             ),
                           ],
                         ),

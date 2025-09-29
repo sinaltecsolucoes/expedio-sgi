@@ -3,7 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
-import 'home_screen.dart';
+import '../services/cache_service.dart';
+//import 'home_screen.dart';
+import 'selecao_operacao_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,12 +18,13 @@ class _LoginScreenState extends State<LoginScreen> {
   final _loginController = TextEditingController();
   final _senhaController = TextEditingController();
   final ApiService _apiService = ApiService();
+  final CacheService _cacheService = CacheService();
   bool _isLoading = false;
 
-  void _doLogin() async {
+  /*void _doLogin() async {
     setState(() {
       _isLoading = true;
-    });
+    }); 
 
     final result = await _apiService.login(
       _loginController.text,
@@ -33,15 +36,139 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     if (result['success'] == true && mounted) {
+      await _cacheService.saveUserName(result['userName']);
+
       // Navega para a tela principal em caso de sucesso
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        //MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(
+          builder: (context) => SelecaoOperacaoScreen(),
+        ), // MUDANÇA APLICADA
       );
     } else if (mounted) {
       // Mostra uma mensagem de erro
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
       );
+    }
+  }*/
+
+  /* void _doLogin() async {
+    // Garante que o teclado seja recolhido ao pressionar o botão
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final result = await _apiService.login(
+        _loginController.text.trim(), // .trim() remove espaços em branco
+        _senhaController.text,
+      );
+
+      if (result['success'] == true && mounted) {
+        await _cacheService.saveUserName(result['userName']);
+
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const SelecaoOperacaoScreen(),
+          ),
+        );
+      } else if (mounted) {
+        // Trata erros de negócio (ex: usuário ou senha inválidos)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Credenciais inválidas.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // O bloco 'catch' captura erros de conexão ou exceções inesperadas
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Erro de conexão: Verifique a sua rede ou o IP do servidor.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        print('Erro detalhado do login: ${e.toString()}');
+      }
+    } finally {
+      // O bloco 'finally' garante que o loading seja desativado,
+      // não importa se a operação teve sucesso ou falhou.
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }*/
+
+  Future<void> _doLogin() async {
+    FocusScope.of(context).unfocus();
+    if (_loginController.text.isEmpty || _senhaController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, preencha o login e a senha.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final result = await _apiService.login(
+        _loginController.text.trim(),
+        _senhaController.text,
+      );
+
+      if (result['success'] == true) {
+        await _cacheService.saveToken(result['token']);
+        await _cacheService.saveUserName(result['userName']);
+
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const SelecaoOperacaoScreen(),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Credenciais inválidas'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'ERRO DE CONEXÃO: Verifique sua rede ou o IP do Servidor.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        print('DEBUG LOGIN ERROR: ${e.toString()}');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

@@ -9,13 +9,13 @@ import 'gerenciar_fila_screen.dart';
 class GerenciarCarregamentoScreen extends StatefulWidget {
   final int carregamentoId;
   final String numeroCarregamento;
-  final String ordemExpedicao;
+  //final String ordemExpedicao;
 
   const GerenciarCarregamentoScreen({
     super.key,
     required this.carregamentoId,
     required this.numeroCarregamento,
-    required this.ordemExpedicao,
+    //required this.ordemExpedicao,
   });
 
   @override

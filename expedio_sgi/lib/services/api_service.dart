@@ -3,9 +3,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+//import '../models/operacao_modo.dart';
+import 'cache_service.dart';
 
 class ApiService {
-  Future<String> _getServerRoot() async {
+  /*  Future<String> _getServerRoot() async {
     final prefs = await SharedPreferences.getInstance();
     final customAddress = prefs.getString('server_ip');
 
@@ -16,6 +18,21 @@ class ApiService {
       // Caso contrário, usamos a URL online padrão com https
       return 'https://marchef.ddns.net';
     }
+  } */
+
+  Future<String> _getServerRoot() async {
+    final prefs = await SharedPreferences.getInstance();
+    final customAddress = prefs.getString('server_ip');
+
+    if (customAddress != null && customAddress.trim().isNotEmpty) {
+      // Se o utilizador digitou um endereço/IP, usamos ele com http
+      print('Usando IP local para testes: $customAddress');
+      return 'http://${customAddress.trim()}';
+    } else {
+      // Caso contrário, usamos a URL online padrão com https
+      print('Nenhum IP local encontrado. Usando servidor de produção.');
+      return 'https://marchef.ddns.net';
+    }
   }
 
   Future<String> _getBaseUrl() async {
@@ -23,16 +40,47 @@ class ApiService {
     return '$root/marchef/public/api.php';
   }
 
+  /* Future<String> _getBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ip = prefs.getString('server_ip');
+
+    // AQUI ESTÁ A NOVA VERIFICAÇÃO INTELIGENTE
+    if (ip == null || ip.isEmpty) {
+      // Se o IP não estiver configurado, lança um erro específico e claro.
+      throw Exception(
+        'IP do servidor não configurado. Por favor, configure-o na tela de login.',
+      );
+    }
+
+    return 'http://$ip/marchef/public/api.php';
+  } */
+
+  /*  Future<String> _getBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ip = prefs.getString('server_ip');
+
+    // REGRA 1: Se um IP local foi configurado, use-o.
+    if (ip != null && ip.trim().isNotEmpty) {
+      print('Usando IP local para testes: $ip');
+      return 'http://${ip.trim()}/marchef/public/api.php';
+    } else {
+      // REGRA 2 (Fallback): Se nenhum IP local for encontrado, usa o endereço do servidor de produção.
+      // POR FAVOR, CONFIRME SE ESTE É O ENDEREÇO CORRETO DO SEU SERVIDOR WEB.
+      print('Nenhum IP local encontrado. Usando servidor de produção.');
+      return 'https://marchef.ddns.net/marchef/public/api.php';
+    }
+  } */
+
   Future<String> getBaseUrlForImages() async {
     final root = await _getServerRoot();
     return '$root/marchef/public'; // Retorna a URL da pasta public
   }
 
   // Função para fazer login
-  Future<Map<String, dynamic>> login(String login, String senha) async {
+  /*  Future<Map<String, dynamic>> login(String login, String senha) async {
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=login');
-
+  
     try {
       final response = await http.post(
         url,
@@ -56,6 +104,43 @@ class ApiService {
     } catch (e) {
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
+  } */
+
+  // --- FUNÇÃO DE LOGIN ---
+  /*  Future<Map<String, dynamic>> login(String login, String senha) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=login');
+    print('Tentando conectar a: $url');
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({'login': login, 'senha': senha}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Falha ao autenticar: ${response.body}');
+    }
+  } */
+
+  Future<Map<String, dynamic>> login(String login, String senha) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=login');
+    print('Tentando conectar a: $url');
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({'login': login, 'senha': senha}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Falha ao autenticar: ${response.body}');
+    }
   }
 
   // Função privada para salvar os dados no dispositivo
@@ -75,7 +160,7 @@ class ApiService {
   }
 
   // Função para buscar os dados iniciais de um novo carregamento
-  Future<Map<String, dynamic>> getDadosNovoCarregamento() async {
+  /*  Future<Map<String, dynamic>> getDadosNovoCarregamento() async {
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=getDadosNovoCarregamento');
     final authData = await getAuthData();
@@ -103,6 +188,33 @@ class ApiService {
     } catch (e) {
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
+  } */
+
+  Future<Map<String, dynamic>> getDadosNovoCarregamento() async {
+    final cacheService = CacheService();
+    final token = await cacheService.getToken(); // Pega o token do cache
+
+    if (token == null) {
+      // Se não houver token, retorna um erro antes mesmo de chamar a API
+      return {'success': false, 'message': 'Usuário não autenticado.'};
+    }
+
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=getDadosNovoCarregamento');
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token', // Envia o token para a API
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Falha ao carregar dados da API: ${response.body}');
+    }
   }
 
   // Função para salvar o cabeçalho do carregamento
@@ -113,7 +225,8 @@ class ApiService {
     required String lacre,
     required String placa,
     required String horaInicio,
-    required String ordemExpedicao,
+    //required String ordemExpedicao,
+    required String tipo,
   }) async {
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=salvarCarregamentoHeader');
@@ -137,7 +250,8 @@ class ApiService {
           'lacre': lacre,
           'placa': placa,
           'hora_inicio': horaInicio,
-          'ordem_expedicao': ordemExpedicao,
+          //'ordem_expedicao': ordemExpedicao,
+          'tipo': tipo,
         }),
       );
       return jsonDecode(response.body);
@@ -682,31 +796,6 @@ class ApiService {
     }
   }
 
-  // Função para excluir a foto de uma fila.
-  /*  Future<Map<String, dynamic>> excluirFotoFila(int filaId) async {
-    final baseUrl = await _getBaseUrl();
-    final url = Uri.parse('$baseUrl?action=excluirFotoFila');
-    final authData = await getAuthData();
-    final token = authData['token'];
-
-    if (token == null) return {'success': false, 'message': 'Não autenticado'};
-
-    try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({'filaId': filaId}),
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Erro de conexão: $e'};
-    }
-  }
-*/
-
   Future<Map<String, dynamic>> getFotosDaFila(int filaId) async {
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=getFotosDaFila&filaId=$filaId');
@@ -746,6 +835,202 @@ class ApiService {
       return jsonDecode(response.body);
     } catch (e) {
       return {'success': false, 'message': 'Erro de conexão: $e'};
+    }
+  }
+
+  /// Busca a lista de todas as câmaras de estoque.
+  Future<List<Map<String, dynamic>>> getCamaras() async {
+    final baseUrl = await _getBaseUrl();
+    //final url = Uri.parse('$baseUrl?action=get_camaras');
+    final url = Uri.parse('$baseUrl?action=get_camaras');
+    final response = await http.get(url);
+
+    print('Resposta da API (Endereços): ${response.body}');
+
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      if (body['status'] == 'success') {
+        // A API retorna uma lista de objetos, então fazemos o cast para o tipo correto.
+        return List<Map<String, dynamic>>.from(body['data']);
+      } else {
+        throw Exception('Falha ao carregar câmaras: ${body['message']}');
+      }
+    } else {
+      throw Exception('Erro de rede ao buscar câmaras: ${response.statusCode}');
+    }
+  }
+
+  /// Busca a lista de endereços para uma câmara específica.
+  Future<List<Map<String, dynamic>>> getEnderecosPorCamara(int camaraId) async {
+    // Passamos o camara_id como um parâmetro na URL.
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse(
+      '$baseUrl?action=get_enderecos_por_camara&camara_id=$camaraId',
+    );
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      if (body['status'] == 'success') {
+        return List<Map<String, dynamic>>.from(body['data']);
+      } else {
+        throw Exception('Falha ao carregar endereços: ${body['message']}');
+      }
+    } else {
+      throw Exception(
+        'Erro de rede ao buscar endereços: ${response.statusCode}',
+      );
+    }
+  }
+
+  /// Registra a entrada de um item em um endereço de estoque.
+  /* Future<bool> registrarEntrada(int enderecoId, String qrCode) async {
+    final baseUrl = await _getBaseUrl();
+
+    final url = Uri.parse('$baseUrl?action=registrar_entrada_estoque');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json; charset=UTF-T'},
+
+      // A CORREÇÃO ESTÁ AQUI:
+      // Usamos json.encode() para converter nosso mapa (com int e String)
+      // para uma única String no formato JSON.
+      body: json.encode({'endereco_id': enderecoId, 'qrcode': qrCode}),
+    );
+
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      return body['status'] == 'success';
+    } else {
+      try {
+        // Tenta decodificar a mensagem de erro da API
+        final body = json.decode(response.body);
+        throw Exception('Falha ao registrar entrada: ${body['message']}');
+      } catch (_) {
+        // Se a resposta não for um JSON válido, mostra a resposta bruta
+        throw Exception('Falha ao registrar entrada: ${response.body}');
+      }
+    }
+  } */
+
+  Future<Map<String, dynamic>> registrarEntrada(
+    int enderecoId,
+    String qrCode,
+  ) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=registrar_entrada_estoque');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: json.encode({
+        'endereco_id': enderecoId,
+        'qrcode': qrCode,
+        // 'usuario_id': SEU_ID_DE_USUARIO_LOGADO, // Futuramente, pegar da sessão
+      }),
+    );
+
+    if (response.statusCode == 200 ||
+        response.statusCode == 409 ||
+        response.statusCode == 404) {
+      // Aceita respostas de sucesso (200) ou de erros de negócio (409, 404)
+      return json.decode(response.body);
+    } else {
+      // Erros de servidor inesperados
+      throw Exception('Falha ao registrar entrada: ${response.body}');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getEntradasDoDia(int enderecoId) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse(
+      '$baseUrl?action=get_entradas_do_dia&endereco_id=$enderecoId',
+    );
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      if (body['success'] == true) {
+        return List<Map<String, dynamic>>.from(body['data']);
+      } else {
+        throw Exception('Falha ao buscar entradas: ${body['message']}');
+      }
+    } else {
+      throw Exception('Erro de rede ao buscar entradas: ${response.body}');
+    }
+  }
+
+  Future<bool> excluirAlocacao(int alocacaoId) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=excluir_alocacao_entrada');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: json.encode({'alocacao_id': alocacaoId}),
+    );
+    return response.statusCode == 200 &&
+        json.decode(response.body)['success'] == true;
+  }
+
+  Future<bool> editarQuantidade(int alocacaoId, double novaQuantidade) async {
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=editar_quantidade_alocacao');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: json.encode({
+        'alocacao_id': alocacaoId,
+        'nova_quantidade': novaQuantidade,
+      }),
+    );
+    return response.statusCode == 200 &&
+        json.decode(response.body)['success'] == true;
+  }
+
+  /// Busca a lista de Ordens de Expedição prontas para carregar.
+  Future<List<Map<String, dynamic>>> getOrdensProntas() async {
+    final token = await CacheService().getToken();
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=get_ordens_prontas');
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      if (body['success'] == true) {
+        return List<Map<String, dynamic>>.from(body['data']);
+      } else {
+        throw Exception('Falha ao buscar OEs: ${body['message']}');
+      }
+    } else {
+      throw Exception('Erro de rede ao buscar OEs: ${response.body}');
+    }
+  }
+
+  /// Busca os detalhes de uma OE específica para pré-preencher o carregamento.
+  Future<Map<String, dynamic>> getDetalhesOE(int oeId) async {
+    final token = await CacheService().getToken();
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=get_detalhes_oe&oe_id=$oeId');
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      if (body['success'] == true) {
+        return Map<String, dynamic>.from(body['data']);
+      } else {
+        throw Exception('Falha ao buscar detalhes da OE: ${body['message']}');
+      }
+    } else {
+      throw Exception(
+        'Erro de rede ao buscar detalhes da OE: ${response.body}',
+      );
     }
   }
 }
