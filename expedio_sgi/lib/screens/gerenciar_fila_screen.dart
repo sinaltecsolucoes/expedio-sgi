@@ -149,11 +149,12 @@ class _GerenciarFilaScreenState extends State<GerenciarFilaScreen> {
       },
     );
 
-    if (clienteSelecionado == null)
-      return; // Usuário cancelou ou não selecionou
+    if (clienteSelecionado == null) {
+      return;
+    } // Usuário cancelou ou não selecionou
 
     // 2. Verificamos se o cliente selecionado JÁ EXISTE na fila atual
-    final idClienteSelecionado = clienteSelecionado['ent_codigo'];
+    final idClienteSelecionado = clienteSelecionado['id'];
     final clienteExistente = _listaDeClientes
         .cast<Map<String, dynamic>?>()
         .firstWhere(

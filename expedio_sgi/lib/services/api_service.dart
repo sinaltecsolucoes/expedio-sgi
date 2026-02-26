@@ -207,6 +207,8 @@ class ApiService {
     // Removemos chaves com valores nulos para não enviar dados desnecessários
     body.removeWhere((key, value) => value == null);
 
+    print('JSON SENDING TO PHP: ${json.encode(body)}');
+
     final response = await http.post(
       url,
       headers: {

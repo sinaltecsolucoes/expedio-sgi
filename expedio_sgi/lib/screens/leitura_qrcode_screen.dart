@@ -224,28 +224,34 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
 
   void _adicionarProdutoNaListaLocal(Map<String, dynamic> dados) {
     setState(() {
+      // 1. Captura os nomes para exibição na interface
       final String produtoNome = dados['produto'] ?? 'Produto Desconhecido';
       final String lote = dados['lote'] ?? 'N/A';
       final String chaveDeBusca = "$produtoNome (Lote: $lote)";
 
+      // 2. Busca se o produto já está na lista da tela
       final index = _produtosAgrupados.indexWhere(
         (p) => p['produtoNome'] == chaveDeBusca,
       );
 
       if (index != -1) {
+        // Se já existe, apenas incrementa a quantidade
         _produtosAgrupados[index]['quantidade']++;
       } else {
+        // Se é novo, adiciona o mapa com todas as chaves necessárias para o PHP
         _produtosAgrupados.add({
           'produtoNome': chaveDeBusca,
           'quantidade': 1,
           'produtoId': dados['produtoId'],
           'loteId': dados['loteIdHeader'],
+          //'alocacaoId': dados['lote_item_id'] ?? dados['alocacao_id'],
+          'oeiId': dados['oeiId'] ?? null,
         });
       }
     });
   }
 
-  Future<void> _salvarLeiturasDeSaida() async {
+  /*Future<void> _salvarLeiturasDeSaida() async {
     // A sua função de salvar para saídas continua a mesma
     if (_isSaving || _produtosAgrupados.isEmpty) return;
     setState(() => _isSaving = true);
@@ -271,12 +277,129 @@ class _LeituraQrCodeScreenState extends State<LeituraQrCodeScreen> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }*/
+
+  /* Future<void> _salvarLeiturasDeSaida() async {
+    // 1. Verificação com debug para sabermos por que ele trava
+    if (_produtosAgrupados.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhum item lido para salvar.')),
+      );
+      return;
+    }
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      // 2. Garante que os IDs não sejam nulos e que a quantidade seja tratada corretamente
+      final int carregamentoId = widget.carregamentoId ?? 0;
+      final int filaId = widget.filaId ?? 0;
+      final int clienteId = widget.clienteId ?? 0;
+
+      // 3. Limpeza dos dados: transforma qualquer valor de quantidade em numérico puro
+      final leiturasTratadas = _produtosAgrupados.map((item) {
+        return {
+          'alocacaoId': item['alocacaoId'],
+          'quantidade': double.parse(
+            item['quantidade'].toString(),
+          ), // Trata int ou double
+          'motivo': item['motivo'],
+          'oeiId': item['oeiId'],
+        };
+      }).toList();
+
+      final response = await _apiService.atualizarLeituras(
+        carregamentoId: carregamentoId,
+        filaId: filaId,
+        clienteId: clienteId,
+        leituras: leiturasTratadas,
+      );
+
+      if (mounted) {
+        if (response['success'] == true) {
+          Navigator.of(context).pop(true);
+        } else {
+          throw Exception(response['message'] ?? 'Erro desconhecido');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Falha ao salvar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }*/
+
+  Future<void> _salvarLeiturasDeSaida() async {
+    if (_produtosAgrupados.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhum item lido para salvar.')),
+      );
+      return;
+    }
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      // Tratamento seguro de IDs para evitar erro de Null Check (!)
+      final int carregamentoId = widget.carregamentoId ?? 0;
+      final int filaId = widget.filaId ?? 0;
+      final int clienteId = widget.clienteId ?? 0;
+
+      // Conversão segura da lista para JSON
+      final leiturasTratadas = _produtosAgrupados.map((item) {
+        return {
+          // 'alocacaoId': item['alocacaoId'] ?? 0,
+          'produtoId': item['produtoId'],
+          'loteId': item['loteId'],
+          'quantidade': double.parse(item['quantidade'].toString()),
+          'motivo': item['motivo']?.toString() ?? '',
+          'oeiId': item['oeiId'],
+        };
+      }).toList();
+
+      final response = await _apiService.atualizarLeituras(
+        carregamentoId: carregamentoId,
+        filaId: filaId,
+        clienteId: clienteId,
+        leituras: leiturasTratadas,
+      );
+
+      if (mounted) {
+        if (response['success'] == true) {
+          Navigator.of(context).pop(true);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro: ${response['message']}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Falha técnica: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   int get _totalItensLidos {
     if (_produtosAgrupados.isEmpty) return 0;
     return _produtosAgrupados
-        .map((p) => p['quantidade'] as int)
+        .map((p) => (double.tryParse(p['quantidade'].toString()) ?? 0).toInt())
         .fold(0, (a, b) => a + b);
   }
 

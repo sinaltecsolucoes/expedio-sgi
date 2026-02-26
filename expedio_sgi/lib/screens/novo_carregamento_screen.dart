@@ -131,7 +131,7 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
         placa: _placaController.text,
         horaInicio: _horaInicio!.format(context),
         ordemExpedicaoId: _isModoOE
-            ? widget.dadosIniciaisOE!['oe_id'].toString()
+            ? widget.dadosIniciaisOE!['oe_id']?.toString()
             : null,
         tipo: _isModoOE ? 'ORDEM_EXPEDICAO' : 'AVULSA',
       );
