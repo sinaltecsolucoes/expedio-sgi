@@ -39,7 +39,7 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
   final _ordemExpedicaoController = TextEditingController();
 
   final placaFormatter = MaskTextInputFormatter(
-    mask: 'AAA-@### / AAA-@###',
+    mask: 'AAA-#@## / AAA-#@##',
     filter: {
       "#": RegExp(r'[0-9]'),
       "A": RegExp(r'[a-zA-Z]'),
@@ -49,7 +49,9 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
 
   int? _proximoNumero;
   List<Map<String, dynamic>> _clientes = [];
+  //List<Map<String, dynamic>> _transportadora = [];
   Map<String, dynamic>? _clienteSelecionado;
+  Map<String, dynamic>? _transportadoraSelecionada;
   TimeOfDay? _horaInicio;
   bool _isLoading = true;
   bool _isSaving = false;
@@ -239,6 +241,34 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
                 return item['id'] == selectedItem['id'];
               },
             ),
+
+             /*DropdownSearch<Map<String, dynamic>>(
+              items: _transportadora,
+              selectedItem: _transportadoraSelecionada,
+              onChanged: (value) => setState(() => _transportadoraSelecionada = value),
+              itemAsString: (item) => item['text'] ?? '',
+              popupProps: const PopupProps.menu(
+                showSearchBox: true,
+                searchFieldProps: TextFieldProps(
+                  decoration: InputDecoration(labelText: "Pesquisar transportadora"),
+                ),
+              ),
+              dropdownDecoratorProps: const DropDownDecoratorProps(
+                dropdownSearchDecoration: InputDecoration(
+                  labelText: 'Transportadora',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              // Adiciona um validador para campo obrigatório
+              // validator: (value) => value == null ? 'Campo obrigatório' : null,
+
+              // A nova função para comparar os itens
+              compareFn: (item, selectedItem) {
+                // Compara os itens pelo 'ent_codigo', que é o identificador único
+                return item['id'] == selectedItem['id'];
+              },
+            ),*/
+
 
             const SizedBox(height: 16),
 
