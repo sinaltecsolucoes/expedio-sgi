@@ -177,6 +177,7 @@ class ApiService {
     String? motoristaCpf,
     required String tipo,
     String? ordemExpedicaoId,
+    String? ordemExpedicaoNumero,
   }) async {
     print('ApiService: Cliente ID recebido da tela: $clienteOrganizadorId');
     final cacheService = CacheService();
@@ -202,6 +203,7 @@ class ApiService {
       'motoristaCpf': motoristaCpf,
       'tipo': tipo,
       'ordemExpedicaoId': ordemExpedicaoId,
+      'ordemExpedicaoNumero': ordemExpedicaoNumero
     };
 
     // Removemos chaves com valores nulos para não enviar dados desnecessários

@@ -133,6 +133,7 @@ class _NovoCarregamentoScreenState extends State<NovoCarregamentoScreen> {
         ordemExpedicaoId: _isModoOE
             ? widget.dadosIniciaisOE!['oe_id']?.toString()
             : null,
+        ordemExpedicaoNumero: _isModoOE ? _ordemExpedicaoController.text : null,
         tipo: _isModoOE ? 'ORDEM_EXPEDICAO' : 'AVULSA',
       );
 
