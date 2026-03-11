@@ -32,93 +32,48 @@ class ApiService {
     return '$root/marchef/public'; // Retorna a URL da pasta public
   }
 
-  /*  Future<Map<String, dynamic>> login(String login, String senha) async {
-    final baseUrl = await _getBaseUrl();
-    final url = Uri.parse('$baseUrl?action=login');
-    print('Tentando conectar a: $url');
-
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: jsonEncode({'login': login, 'senha': senha}),
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Falha ao autenticar: ${response.body}');
-    }
-  }
-*/
-
-  /*  Future<Map<String, dynamic>> login(String login, String senha) async {
-    final baseUrl = await _getBaseUrl();
-    final url = Uri.parse('$baseUrl?action=login');
-    print('Tentando conectar a: $url');
-
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: jsonEncode({'login': login, 'senha': senha}),
-    );
-
-    if (response.statusCode == 200) {
-      final body = jsonDecode(response.body);
-      // Adicionamos a verificação de sucesso e a chamada para salvar o token
-      if (body['success'] == true) {
-        final token = body['token'];
-        final userName = body['usu_nome'];
-        // SALVA O TOKEN E O NOME DE UTILIZADOR
-        await _saveAuthData(token, userName);
-      }
-      return body;
-    } else {
-      throw Exception('Falha ao autenticar: ${response.body}');
-    }
-  }
-*/
-
   Future<Map<String, dynamic>> login(String login, String senha) async {
     final baseUrl = await _getBaseUrl();
     final url = Uri.parse('$baseUrl?action=login');
-    print('Tentando conectar a URL: $url');
+    // print('Tentando conectar a URL: $url');
 
     try {
-      print('Iniciando requisição HTTP POST...');
+      // print('Iniciando requisição HTTP POST...');
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json; charset=UTF-8'},
         body: jsonEncode({'login': login, 'senha': senha}),
       );
-      print('Requisição finalizada com status: ${response.statusCode}');
+      // print('Requisição finalizada com status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
+        /* if (body['success'] == true) {
+          final token = body['token'];
+          final userName = body['userName'] ?? '';
+          final funcao = body['usu_funcao'] ?? '';
+
+          await _saveAuthData(token, userName, funcao);
+        }*/
         if (body['success'] == true) {
           final token = body['token'];
-          // Garante que userName é sempre uma String, mesmo que a resposta da API seja null
-          final userName = body['usu_nome'] ?? '';
-          await _saveAuthData(token, userName);
+          final userName = body['userName'] ?? '';
+          final funcao = body['usu_funcao'] ?? '';
+
+          await _saveAuthData(token, userName, funcao);
         }
         return body;
       } else {
         throw Exception('Falha ao autenticar: ${response.body}');
       }
     } catch (e) {
-      print('Erro de conexão ou requisição: $e');
+      // print('Erro de conexão ou requisição: $e');
       throw Exception(
         'Erro de rede ou conexão. Por favor, verifique sua conexão ou o endereço do servidor.',
       );
     }
   }
 
-  // Função privada para salvar os dados no dispositivo
-  /* Future<void> _saveAuthData(String token, String userName) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('api_token', token);
-    await prefs.setString('user_name', userName);
-  }
-*/
   // Função para buscar dados do token e do nome de usuário
   Future<Map<String, String?>> getAuthData() async {
     final prefs = await SharedPreferences.getInstance();
@@ -128,13 +83,15 @@ class ApiService {
     };
   }
 
-  Future<void> _saveAuthData(String token, String userName) async {
+  Future<void> _saveAuthData(
+    String token,
+    String userName,
+    String funcao,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('api_token', token);
-    await prefs.setString(
-      'user_name',
-      userName,
-    ); // Garante que a chave é sempre 'user_name'
+    await prefs.setString('user_name', userName);
+    await prefs.setString('user_funcao', funcao);
   }
 
   Future<Map<String, dynamic>> getDadosNovoCarregamento() async {
@@ -203,7 +160,7 @@ class ApiService {
       'motoristaCpf': motoristaCpf,
       'tipo': tipo,
       'ordemExpedicaoId': ordemExpedicaoId,
-      'ordemExpedicaoNumero': ordemExpedicaoNumero
+      'ordemExpedicaoNumero': ordemExpedicaoNumero,
     };
 
     // Removemos chaves com valores nulos para não enviar dados desnecessários
@@ -969,5 +926,70 @@ class ApiService {
         'Erro de rede ao buscar detalhes da OE: ${response.body}',
       );
     }
+  }
+
+  /// Busca lotes disponíveis para embalagem
+  Future<List<Map<String, dynamic>>> getLotesEmbalagem() async {
+    final token = await CacheService().getToken();
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=get_lotes_embalagem');
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      if (body['success'] == true) {
+        return List<Map<String, dynamic>>.from(body['data']);
+      }
+      throw Exception(body['message'] ?? 'Erro ao buscar lotes');
+    }
+    throw Exception('Erro de rede: ${response.statusCode}');
+  }
+
+  /// Busca produtos e saldos de um lote específico
+  Future<List<dynamic>> getProdutosLoteEmbalagem(int loteId) async {
+    final token = await CacheService().getToken();
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse(
+      '$baseUrl?action=get_produtos_lote_embalagem&loteId=$loteId',
+    );
+
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      return body['data']; // Retorna a lista para o modelo ProdutoPrimario.fromJson
+    }
+    throw Exception('Erro ao carregar produtos do lote');
+  }
+
+  /// Salva o item de embalagem (POST)
+  Future<Map<String, dynamic>> salvarItemEmbalagem(
+    Map<String, dynamic> dados,
+  ) async {
+    final token = await CacheService().getToken();
+    final baseUrl = await _getBaseUrl();
+    final url = Uri.parse('$baseUrl?action=salvar_item_embalagem');
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(dados),
+    );
+
+    final body = json.decode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 400) {
+      return body; // O 400 pode conter mensagens de erro de validação/saldo
+    }
+    throw Exception('Erro ao salvar embalagem');
   }
 }

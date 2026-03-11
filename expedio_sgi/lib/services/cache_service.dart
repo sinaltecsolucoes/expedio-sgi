@@ -67,4 +67,17 @@ class CacheService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
   }
+
+  Future<void> saveUserFuncao(String funcao) async {
+    final prefs = await SharedPreferences.getInstance();
+    print('DEBUG CACHE: Gravando "$funcao" na chave "user_funcao"');
+    await prefs.setString('user_funcao', funcao);
+  }
+
+  Future<String?> getUserFuncao() async {
+    final prefs = await SharedPreferences.getInstance();
+    final valor = prefs.getString('user_funcao');
+    print('DEBUG CACHE: Lido "$valor" da chave "user_funcao"');
+    return valor;
+  }
 }
