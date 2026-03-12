@@ -43,69 +43,6 @@ class _GerenciarFilaScreenState extends State<GerenciarFilaScreen> {
   }
 
   // Cria e exibe o dialog para selecionar o cliente
-  /*  Future<void> _mostrarDialogoSelecionarCliente() async {
-    // Busca a lista completa de clientes do nosso cache
-    final List<Map<String, dynamic>> todosOsClientes = await _cacheService
-        .getClientes();
-    Map<String, dynamic>? clienteSelecionado;
-
-    if (!mounted) return;
-
-    await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Selecionar Cliente'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: DropdownSearch<Map<String, dynamic>>(
-              popupProps: const PopupProps.menu(showSearchBox: true),
-              items: todosOsClientes,
-              itemAsString: (Map<String, dynamic> cliente) =>
-                  cliente['nome_display'] ?? '',
-              onChanged: (Map<String, dynamic>? data) {
-                clienteSelecionado = data;
-              },
-              dropdownDecoratorProps: const DropDownDecoratorProps(
-                dropdownSearchDecoration: InputDecoration(labelText: "Cliente"),
-              ),
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            TextButton(
-              child: const Text('Avançar'),
-              onPressed: () {
-                Navigator.of(context).pop(); // Fecha o dialog
-                if (clienteSelecionado != null) {
-                  // Navega para a tela de leitura de QR Code
-                  Navigator.of(context)
-                      .push(
-                        MaterialPageRoute(
-                          builder: (context) => LeituraQrCodeScreen(
-                            carregamentoId: widget.carregamentoId,
-                            filaId: widget.filaId,
-                            clienteId: clienteSelecionado!['ent_codigo'],
-                            filaNumero: widget.filaNumero,
-                          ),
-                        ),
-                      )
-                      .then(
-                        (_) => _carregarDetalhesFila(),
-                      ); // Recarrega os detalhes ao voltar
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-*/
-
   Future<void> _mostrarDialogoSelecionarCliente() async {
     final List<Map<String, dynamic>> todosOsClientes = await _cacheService
         .getClientes();

@@ -88,6 +88,7 @@ class _GaleriaFilaScreenState extends State<GaleriaFilaScreen> {
   }
 
   Future<void> _excluirFoto(int fotoId) async {
+    print('Tentando excluir a foto com ID: $fotoId');
     final bool? confirmado = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -154,7 +155,13 @@ class _GaleriaFilaScreenState extends State<GaleriaFilaScreen> {
                         backgroundColor: Colors.red,
                         child: Icon(Icons.close, color: Colors.white, size: 18),
                       ),
-                      onPressed: () => _excluirFoto(foto['foto_id']),
+                      // onPressed: () => _excluirFoto(foto['foto_id']),
+                      onPressed: () {
+                        print(
+                          "Dados da foto selecionada: $foto",
+                        ); // <--- Adicione isso
+                        _excluirFoto(foto['foto_id']);
+                      },
                       tooltip: 'Excluir Foto',
                     ),
                   ),
@@ -176,15 +183,14 @@ class _GaleriaFilaScreenState extends State<GaleriaFilaScreen> {
                         placeholder: (context, url) => Container(
                           color: Colors.grey[200],
                           child: const Center(
-                            child:CircularProgressIndicator(),
+                            child: CircularProgressIndicator(),
                           ),
                         ),
-                        errorWidget: (context, url, error) =>
-                            const Icon(
-                              Icons.broken_image,
-                              size: 40,
-                              color: Colors.grey,
-                            ),
+                        errorWidget: (context, url, error) => const Icon(
+                          Icons.broken_image,
+                          size: 40,
+                          color: Colors.grey,
+                        ),
                       ),
                     ),
                   ),

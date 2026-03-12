@@ -153,11 +153,14 @@ class _SelecaoOperacaoScreenState extends State<SelecaoOperacaoScreen> {
                 color: Colors.purple.shade700,
                 onPressed: () {
                   // Substituindo o SnackBar pela navegação real
-                  Navigator.push(
+                  /* Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => const EmbalagemLotesScreen(),
                     ),
+                  );*/
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Módulo Embalagem em breve.')),
                   );
                 },
               ),
